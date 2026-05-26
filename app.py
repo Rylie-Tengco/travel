@@ -5,6 +5,7 @@ import html
 import re
 import os
 import tempfile
+from datetime import date
 from urllib.parse import quote_plus
 from groq import Groq
 
@@ -1045,10 +1046,10 @@ def build_response_images_cached(user_message, assistant_message, limit=3):
     return tuple((item["url"], item["caption"]) for item in build_response_images(user_message, assistant_message, limit))
 
 
-def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text):
+def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text, current_date_text):
     client = Groq(api_key=st.session_state.groq_key)
     schedule_context = trip_date_text if trip_date_text else "Not provided yet"
-    system = SYSTEM_PROMPT + f"\n\nUser's current trip preferences: Country={trip_country}, Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}"
+    system = SYSTEM_PROMPT + f"\n\nCurrent date for planning: {current_date_text}\nUser's current trip preferences: Country={trip_country}, Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}"
     messages = [{"role": "system", "content": system}]
     for m in st.session_state.messages:
         messages.append({"role": m["role"], "content": m["content"]})
@@ -1147,6 +1148,8 @@ with left:
     st.session_state.theme_mode = "light" if theme_mode_enabled else "dark"
     st.markdown(get_theme_override_css(st.session_state.theme_mode), unsafe_allow_html=True)
 
+    current_date_text = date.today().isoformat()
+
     st.divider()
 
     st.markdown('<div class="section-label">🗺️ Trip Preferences</div>', unsafe_allow_html=True)
@@ -1159,6 +1162,7 @@ with left:
     budget = f"{budget_currency} {budget_amount:,.0f} ({budget_scope.lower()})"
 
     st.markdown('<div class="section-label">📅 Trip Timing</div>', unsafe_allow_html=True)
+    st.caption(f"Planning from today's date: {current_date_text}")
     trip_date_text = st.text_input(
         "When would you take the trip?",
         placeholder="e.g. 2026-06-10, next July, or around Christmas",
@@ -1218,7 +1222,7 @@ with left:
                         else:
                             with st.spinner("WanderMind is thinking... 🌍"):
                                 try:
-                                    reply = chat_with_agent(transcript, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                                    reply = chat_with_agent(transcript, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                                     assistant_message = {"role": "assistant", "content": reply}
                                     images = build_response_images(transcript, reply)
                                     if images:
@@ -1263,7 +1267,7 @@ with left:
                         else:
                             with st.spinner("WanderMind is thinking... 🌍"):
                                 try:
-                                    reply = chat_with_agent(transcript_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                                    reply = chat_with_agent(transcript_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                                     assistant_message = {"role": "assistant", "content": reply}
                                     images = build_response_images(transcript_text, reply)
                                     if images:
@@ -1374,7 +1378,7 @@ with right:
             st.session_state.messages.append({"role": "user", "content": user_input})
             with st.spinner("WanderMind is thinking... 🌍"):
                 try:
-                    reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                    reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                     assistant_message = {"role": "assistant", "content": reply}
                     images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
                     if images:
