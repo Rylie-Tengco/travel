@@ -632,6 +632,92 @@ def load_api_key(secret_keys, env_keys):
 
     return ""
 
+
+COUNTRY_PLACEHOLDER = "Select a country"
+COUNTRY_OPTIONS = [
+    COUNTRY_PLACEHOLDER,
+    "Argentina",
+    "Australia",
+    "Austria",
+    "Bahrain",
+    "Bangladesh",
+    "Belgium",
+    "Bhutan",
+    "Brazil",
+    "Bulgaria",
+    "Cambodia",
+    "Canada",
+    "Chile",
+    "China",
+    "Colombia",
+    "Costa Rica",
+    "Croatia",
+    "Czech Republic",
+    "Denmark",
+    "Dominican Republic",
+    "Ecuador",
+    "Egypt",
+    "Estonia",
+    "Finland",
+    "France",
+    "Georgia",
+    "Germany",
+    "Ghana",
+    "Greece",
+    "Guatemala",
+    "Hungary",
+    "Iceland",
+    "India",
+    "Indonesia",
+    "Ireland",
+    "Israel",
+    "Italy",
+    "Jamaica",
+    "Japan",
+    "Jordan",
+    "Kazakhstan",
+    "Kenya",
+    "Laos",
+    "Lebanon",
+    "Lithuania",
+    "Luxembourg",
+    "Malaysia",
+    "Maldives",
+    "Malta",
+    "Mexico",
+    "Mongolia",
+    "Morocco",
+    "Nepal",
+    "Netherlands",
+    "New Zealand",
+    "Nicaragua",
+    "Norway",
+    "Oman",
+    "Panama",
+    "Paraguay",
+    "Peru",
+    "Philippines",
+    "Poland",
+    "Portugal",
+    "Qatar",
+    "Romania",
+    "Saudi Arabia",
+    "Singapore",
+    "Slovakia",
+    "South Africa",
+    "South Korea",
+    "Spain",
+    "Sweden",
+    "Switzerland",
+    "Taiwan",
+    "Thailand",
+    "Turkey",
+    "United Arab Emirates",
+    "United Kingdom",
+    "United States",
+    "Vietnam",
+]
+
 def get_theme_override_css(theme_mode):
     if theme_mode != "light":
         return ""
@@ -725,6 +811,8 @@ IMPORTANT RULES:
 - If the user says hello, hi, or just greets you — greet them back warmly and ask where they want to go. Keep it SHORT (2-3 lines max).
 - Only create itineraries or long travel plans when the user EXPLICITLY asks for one (e.g. "plan a trip", "make an itinerary", "plan my travel").
 - If the user asks for a trip plan or schedule and you do not know when they want to travel yet, ask: "When would you like to take the trip?" before creating the schedule.
+- Always keep recommendations inside the selected country. Never suggest destinations outside the selected country.
+- If the selected country conflicts with the user's request, adapt the plan to places within the chosen country instead of going global.
 - For simple questions, give short focused answers.
 - Match the length of your response to what was asked. Short question = short answer.
 - Use emojis naturally but don't overdo it.
@@ -944,10 +1032,10 @@ def build_response_images_cached(user_message, assistant_message, limit=3):
     return tuple((item["url"], item["caption"]) for item in build_response_images(user_message, assistant_message, limit))
 
 
-def chat_with_agent(user_message, trip_style, trip_days, budget, trip_date_text):
+def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text):
     client = Groq(api_key=st.session_state.groq_key)
     schedule_context = trip_date_text if trip_date_text else "Not provided yet"
-    system = SYSTEM_PROMPT + f"\n\nUser's current trip preferences: Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}"
+    system = SYSTEM_PROMPT + f"\n\nUser's current trip preferences: Country={trip_country}, Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}"
     messages = [{"role": "system", "content": system}]
     for m in st.session_state.messages:
         messages.append({"role": m["role"], "content": m["content"]})
@@ -1046,6 +1134,7 @@ with left:
     st.divider()
 
     st.markdown('<div class="section-label">🗺️ Trip Preferences</div>', unsafe_allow_html=True)
+    trip_country = st.selectbox("Country", COUNTRY_OPTIONS, key="trip_country", help="Choose one country so WanderMind keeps the trip focused there.")
     trip_style = st.selectbox("Travel Style", ["Adventure", "Relaxation", "Cultural", "Foodie", "Family", "Romantic"])
     trip_days = st.number_input("Number of Days", min_value=1, max_value=30, value=5)
     budget_scope = st.selectbox("Budget Scope", ["Total trip budget", "Budget per day"])
@@ -1064,12 +1153,14 @@ with left:
         st.session_state.trip_date_text = trip_date_text
 
     st.markdown('<div class="section-label">⚡ Quick Snapshot</div>', unsafe_allow_html=True)
-    stat_cols = st.columns(3)
+    stat_cols = st.columns(4)
     with stat_cols[0]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Style</div><div class="quick-stat-value">{trip_style}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Country</div><div class="quick-stat-value">{trip_country}</div></div>', unsafe_allow_html=True)
     with stat_cols[1]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Days</div><div class="quick-stat-value">{int(trip_days)}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Style</div><div class="quick-stat-value">{trip_style}</div></div>', unsafe_allow_html=True)
     with stat_cols[2]:
+        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Days</div><div class="quick-stat-value">{int(trip_days)}</div></div>', unsafe_allow_html=True)
+    with stat_cols[3]:
         st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Budget</div><div class="quick-stat-value">{budget_currency} {budget_amount:,.0f}</div></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">🎙️ Voice Intent</div>', unsafe_allow_html=True)
@@ -1088,7 +1179,9 @@ with left:
             skip_processing = False
 
         if not skip_processing and voice_hash and voice_hash != st.session_state.last_voice_audio_hash:
-            if not st.session_state.api_key_set:
+            if trip_country == COUNTRY_PLACEHOLDER:
+                st.warning("Choose a country before using voice input.")
+            elif not st.session_state.api_key_set:
                 st.warning("Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable before using voice input.")
             else:
                 with st.spinner("Transcribing your voice... 🎙️"):
@@ -1110,7 +1203,7 @@ with left:
                         else:
                             with st.spinner("WanderMind is thinking... 🌍"):
                                 try:
-                                    reply = chat_with_agent(transcript, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                                    reply = chat_with_agent(transcript, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
                                     assistant_message = {"role": "assistant", "content": reply}
                                     images = build_response_images(transcript, reply)
                                     if images:
@@ -1150,16 +1243,19 @@ with left:
                             "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
                         })
                     else:
-                        with st.spinner("WanderMind is thinking... 🌍"):
-                            try:
-                                reply = chat_with_agent(transcript_text, trip_style, trip_days, budget, st.session_state.trip_date_text)
-                                assistant_message = {"role": "assistant", "content": reply}
-                                images = build_response_images(transcript_text, reply)
-                                if images:
-                                    assistant_message["images"] = images
-                                st.session_state.messages.append(assistant_message)
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
+                        if trip_country == COUNTRY_PLACEHOLDER:
+                            st.warning("Choose a country before sending a transcript.")
+                        else:
+                            with st.spinner("WanderMind is thinking... 🌍"):
+                                try:
+                                    reply = chat_with_agent(transcript_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                                    assistant_message = {"role": "assistant", "content": reply}
+                                    images = build_response_images(transcript_text, reply)
+                                    if images:
+                                        assistant_message["images"] = images
+                                    st.session_state.messages.append(assistant_message)
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
                     # allow another recording after sending
                     st.session_state.last_voice_audio_hash = ""
                     st.rerun()
@@ -1225,7 +1321,7 @@ with right:
             🌤️ &nbsp;Check weather at your destination<br>
             🎒 &nbsp;Get packing lists & travel tips<br>
             📋 &nbsp;Understand visa & safety requirements<br><br>
-            <b>Where and when would you like to take the trip? 🌏</b>
+            <b>Which country and when would you like to take the trip? 🌏</b>
         </div>""", unsafe_allow_html=True)
 
     for msg in st.session_state.messages:
@@ -1248,7 +1344,9 @@ with right:
     user_input = st.chat_input("Ask me anything... e.g. Plan a 5-day trip to Tokyo")
 
     if user_input:
-        if not st.session_state.api_key_set:
+        if trip_country == COUNTRY_PLACEHOLDER:
+            st.warning("Choose a country first so I can keep the trip focused there.")
+        elif not st.session_state.api_key_set:
             st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
         elif wants_trip_schedule(user_input) and not st.session_state.trip_date_text.strip():
             st.session_state.messages.append({"role": "user", "content": user_input})
@@ -1261,7 +1359,7 @@ with right:
             st.session_state.messages.append({"role": "user", "content": user_input})
             with st.spinner("WanderMind is thinking... 🌍"):
                 try:
-                    reply = chat_with_agent(user_input, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                    reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
                     assistant_message = {"role": "assistant", "content": reply}
                     images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
                     if images:
