@@ -20,7 +20,7 @@ User Input (Streamlit Chat)
         ↓
 Preference Context (travel style, days, budget)
         ↓
-OpenAI GPT-4o-mini (Reasoning Engine)
+Groq LLM (Reasoning Engine)
         ↓
     ┌───────────────────────┐
     │  Tool: OpenWeatherMap │  ← External API
@@ -68,10 +68,18 @@ pip install -r requirements.txt
 ### 3. Get your API keys
 - **Groq API key:** https://console.groq.com/keys
 - **OpenWeatherMap key (free):** https://openweathermap.org/api → Sign up → API Keys
-- Set them as environment variables before launching the app:
-```bash
-set GROQ_API_KEY=your_groq_key
-set OPENWEATHER_API_KEY=your_openweather_key
+- Set them once as Streamlit secrets or environment variables so users do not need to re-enter them after refresh.
+
+Example ` .streamlit/secrets.toml `:
+```toml
+groq_api_key = "your_groq_key"
+openweather_api_key = "your_openweather_key"
+```
+
+Example PowerShell environment variables:
+```powershell
+$env:GROQ_API_KEY = "your_groq_key"
+$env:OPENWEATHER_API_KEY = "your_openweather_key"
 ```
 
 ### 4. Run the app
@@ -80,10 +88,9 @@ streamlit run app.py
 ```
 
 ### 5. Use the app
-1. Paste your OpenAI API key in the sidebar
-2. (Optional) Paste your OpenWeatherMap key for weather checks
-3. Set your travel style, number of days, and budget
-4. Start chatting!
+1. Set your Groq and OpenWeatherMap keys once in secrets or environment variables
+2. Set your travel style, number of days, and budget
+3. Start chatting!
 
 ---
 

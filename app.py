@@ -294,6 +294,23 @@ for key, default in [("messages", []), ("api_key_set", False), ("weather_api_key
     if key not in st.session_state:
         st.session_state[key] = default
 
+
+def load_api_key(secret_keys, env_keys):
+    for key_name in secret_keys:
+        try:
+            value = st.secrets.get(key_name, "")
+        except Exception:
+            value = ""
+        if value:
+            return str(value).strip()
+
+    for key_name in env_keys:
+        value = os.getenv(key_name, "").strip()
+        if value:
+            return value
+
+    return ""
+
 def get_theme_override_css(theme_mode):
     if theme_mode != "light":
         return ""
@@ -738,24 +755,12 @@ with left:
     </div>
     """, unsafe_allow_html=True)
 
-    groq_key = st.text_input(
-        "Groq API key",
-        value=os.getenv("GROQ_API_KEY", "").strip(),
-        type="password",
-        help="Stored only in this session. You can also set GROQ_API_KEY in your environment.",
-    ).strip()
-
-    weather_key = st.text_input(
-        "OpenWeatherMap API key",
-        value=os.getenv("OPENWEATHER_API_KEY", "").strip(),
-        type="password",
-        help="Stored only in this session. You can also set OPENWEATHER_API_KEY in your environment.",
-    ).strip()
+    groq_key = load_api_key(["groq_api_key", "GROQ_API_KEY"], ["GROQ_API_KEY"])
+    weather_key = load_api_key(["openweather_api_key", "OPENWEATHER_API_KEY"], ["OPENWEATHER_API_KEY"])
 
     if groq_key:
         st.session_state.groq_key = groq_key
         st.session_state.api_key_set = True
-        st.success("✅ Groq key active")
     if weather_key:
         st.session_state.weather_key = weather_key
         st.session_state.weather_api_key_set = True
@@ -813,7 +818,7 @@ with left:
 
         if not skip_processing and voice_hash and voice_hash != st.session_state.last_voice_audio_hash:
             if not st.session_state.api_key_set:
-                st.warning("Add your Groq key before using voice input.")
+                st.warning("Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable before using voice input.")
             else:
                 with st.spinner("Transcribing your voice... 🎙️"):
                     transcript = transcribe_voice_intent(voice_audio)
@@ -905,7 +910,7 @@ with left:
         if not weather_city:
             st.warning("Enter a city name.")
         elif not st.session_state.weather_api_key_set:
-            st.warning("Add your OpenWeatherMap key first.")
+            st.warning("Set the OpenWeatherMap key in Streamlit secrets or the OPENWEATHER_API_KEY environment variable first.")
         else:
             with st.spinner("Fetching..."):
                 wd = get_weather(weather_city, st.session_state.weather_key)
@@ -971,7 +976,7 @@ with right:
 
     if user_input:
         if not st.session_state.api_key_set:
-            st.error("⚠️ Please enter your Groq API key on the left panel first.")
+            st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
         elif wants_trip_schedule(user_input) and not st.session_state.trip_date_text.strip():
             st.session_state.messages.append({"role": "user", "content": user_input})
             st.session_state.messages.append({
