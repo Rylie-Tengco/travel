@@ -249,8 +249,21 @@ section[data-testid="stSidebar"] { display: none !important; }
     transform: translateY(-1px);
     border-color: var(--accent-strong);
 }
+.quick-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.2rem;
+}
 .quick-stat-label { color: var(--stat-label); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
-.quick-stat-value { color: var(--stat-value); font-size: 0.96rem; font-weight: 700; margin-top: 0.3rem; }
+.quick-stat-value {
+    color: var(--stat-value);
+    font-size: 0.98rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+    line-height: 1.25;
+    word-break: break-word;
+}
 .message-card {
     border-radius: 18px;
     padding: 0.92rem 1rem;
@@ -1123,6 +1136,9 @@ with left:
         st.session_state.weather_key = weather_key
         st.session_state.weather_api_key_set = True
 
+    if st.session_state.get("trip_country") in (None, "", COUNTRY_PLACEHOLDER) or st.session_state.get("trip_country") not in COUNTRY_OPTIONS:
+        st.session_state.trip_country = "Philippines"
+
     theme_mode_enabled = st.toggle(
         "Light mode",
         value=st.session_state.get("theme_mode", "dark") == "light",
@@ -1153,15 +1169,14 @@ with left:
         st.session_state.trip_date_text = trip_date_text
 
     st.markdown('<div class="section-label">⚡ Quick Snapshot</div>', unsafe_allow_html=True)
-    stat_cols = st.columns(4)
-    with stat_cols[0]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Country</div><div class="quick-stat-value">{trip_country}</div></div>', unsafe_allow_html=True)
-    with stat_cols[1]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Style</div><div class="quick-stat-value">{trip_style}</div></div>', unsafe_allow_html=True)
-    with stat_cols[2]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Days</div><div class="quick-stat-value">{int(trip_days)}</div></div>', unsafe_allow_html=True)
-    with stat_cols[3]:
-        st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Budget</div><div class="quick-stat-value">{budget_currency} {budget_amount:,.0f}</div></div>', unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="quick-snapshot-grid">
+        <div class="quick-stat"><div class="quick-stat-label">Country</div><div class="quick-stat-value">{trip_country}</div></div>
+        <div class="quick-stat"><div class="quick-stat-label">Style</div><div class="quick-stat-value">{trip_style}</div></div>
+        <div class="quick-stat"><div class="quick-stat-label">Days</div><div class="quick-stat-value">{int(trip_days)}</div></div>
+        <div class="quick-stat"><div class="quick-stat-label">Budget</div><div class="quick-stat-value">{budget_currency} {budget_amount:,.0f}</div></div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">🎙️ Voice Intent</div>', unsafe_allow_html=True)
     with st.container(key="voice_auto_send"):
