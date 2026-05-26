@@ -6,7 +6,7 @@
 
 ## 📌 Project Overview
 
-WanderMind is an agentic AI system that helps users plan personalized travel itineraries through a conversational chat interface. It demonstrates key agentic behaviors including multi-step reasoning, tool usage (weather API), short-term memory (conversation context), and goal-oriented task completion.
+WanderMind is an agentic AI system that helps users plan personalized travel itineraries through a conversational chat interface. It demonstrates key agentic behaviors including multi-step reasoning, tool usage (weather API), short-term memory (conversation context), goal-oriented task completion, and local persistence for trip preferences plus chat history.
 
 **Built for:** ANLYTC4 Final Project  
 **Course:** Analytics 4  
@@ -37,6 +37,7 @@ Chat UI with Memory (Streamlit Session State)
 | **Multi-step reasoning** | Groq plans day-by-day itineraries with morning/afternoon/evening breakdown |
 | **Tool usage** | OpenWeatherMap API for live weather at destination |
 | **Short-term memory** | Full conversation history passed on every API call |
+| **Local persistence** | Trip preferences and chat history are saved on the device and restored after refresh |
 | **Goal-oriented behavior** | Agent asks follow-up questions to refine recommendations |
 | **Personalization** | Adapts to travel style, budget, and trip length preferences |
 
@@ -69,6 +70,7 @@ pip install -r requirements.txt
 - **Groq API key:** https://console.groq.com/keys
 - **OpenWeatherMap key (free):** https://openweathermap.org/api → Sign up → API Keys
 - Set them once as Streamlit secrets or environment variables so users do not need to re-enter them after refresh.
+- Trip preferences, theme choice, and chat history are saved locally in `travel_local_state.json` so the app can restore them after a refresh.
 
 Example ` .streamlit/secrets.toml `:
 ```toml
@@ -110,7 +112,8 @@ streamlit run app.py
 ai-travel-planner/
 ├── app.py              # Main Streamlit application
 ├── requirements.txt    # Python dependencies
-└── README.md           # This file
+├── README.md           # This file
+└── travel_local_state.json # Generated local persistence file
 ```
 
 ---

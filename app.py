@@ -1,11 +1,14 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import hashlib
 import html
+import json
 import re
 import os
 import tempfile
 from datetime import date
+from pathlib import Path
 from urllib.parse import quote_plus
 from groq import Groq
 
@@ -268,7 +271,7 @@ section[data-testid="stSidebar"] { display: none !important; }
 .message-card {
     border-radius: 18px;
     padding: 0.92rem 1rem;
-    margin: 0.7rem 0;
+    margin: 0;
     border: 1px solid var(--card-border);
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
     animation: fadeUp 350ms ease both;
@@ -614,6 +617,65 @@ div[data-testid="stToggle"] label,
 .chat-spacer {
     height: 0.2rem;
 }
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell {
+    position: fixed !important;
+    top: 1rem !important;
+    right: 1rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    max-height: calc(100vh - 2rem) !important;
+    width: min(34vw, 520px) !important;
+    height: calc(100vh - 2rem) !important;
+    min-height: 0 !important;
+    z-index: 5 !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell > div {
+    min-height: 0 !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    height: auto !important;
+    max-height: calc(100vh - 8rem) !important;
+    padding: 0.35rem 0.35rem 0.6rem 0;
+    margin-right: -0.1rem;
+    overscroll-behavior: contain;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed > div {
+    min-height: 0 !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed > [data-testid="stElementContainer"]:has(.message-card) {
+    flex: 0 0 auto !important;
+    height: fit-content !important;
+    min-height: fit-content !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed > [data-testid="stElementContainer"]:has(.message-card) [data-testid="stMarkdown"],
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed > [data-testid="stElementContainer"]:has(.message-card) [data-testid="stMarkdownContainer"] {
+    height: auto !important;
+    min-height: 0 !important;
+    margin-bottom: 0 !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed::-webkit-scrollbar {
+    width: 10px;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed::-webkit-scrollbar-thumb {
+    background: var(--input-border);
+    border-radius: 999px;
+}
+@media (max-width: 1100px) {
+    html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell {
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        right: auto !important;
+        z-index: auto !important;
+    }
+}
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
@@ -624,10 +686,6 @@ div[data-testid="stToggle"] label,
 }
 </style>
 """, unsafe_allow_html=True)
-
-for key, default in [("messages", []), ("api_key_set", False), ("weather_api_key_set", False), ("trip_date_text", ""), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", ""), ("theme_mode", "dark")]:
-    if key not in st.session_state:
-        st.session_state[key] = default
 
 
 def load_api_key(secret_keys, env_keys):
@@ -645,6 +703,72 @@ def load_api_key(secret_keys, env_keys):
             return value
 
     return ""
+
+
+PERSISTED_STATE_FILE = Path(__file__).with_name("travel_local_state.json")
+PERSISTED_STATE_VERSION = 2
+PERSISTED_STATE_DEFAULTS = {
+    "state_version": PERSISTED_STATE_VERSION,
+    "messages": [],
+    "trip_country": "Philippines",
+    "trip_style": "Adventure",
+    "trip_days": 5,
+    "budget_scope": "Total trip budget",
+    "budget_currency": "PHP",
+    "budget_amount": 1500.0,
+    "trip_date_text": "",
+    "theme_mode": "dark",
+}
+
+
+def load_persisted_state():
+    try:
+        if not PERSISTED_STATE_FILE.exists():
+            return {}
+        data = json.loads(PERSISTED_STATE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def save_persisted_state():
+    payload = {
+        "state_version": PERSISTED_STATE_VERSION,
+        "messages": st.session_state.get("messages", []),
+        "trip_country": st.session_state.get("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]),
+        "trip_style": st.session_state.get("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]),
+        "trip_days": int(st.session_state.get("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"])),
+        "budget_scope": st.session_state.get("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]),
+        "budget_currency": st.session_state.get("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]),
+        "budget_amount": float(st.session_state.get("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"])),
+        "trip_date_text": st.session_state.get("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]),
+        "theme_mode": st.session_state.get("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]),
+    }
+
+    try:
+        PERSISTED_STATE_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def save_and_rerun():
+    save_persisted_state()
+    st.rerun()
+
+
+def reset_persisted_state():
+    try:
+        PERSISTED_STATE_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    for key, default in PERSISTED_STATE_DEFAULTS.items():
+        st.session_state[key] = default.copy() if isinstance(default, list) else default
+
+
+def request_reset_persisted_state():
+    st.session_state.reset_device_data_requested = True
 
 
 COUNTRY_PLACEHOLDER = "Select a country"
@@ -731,6 +855,37 @@ COUNTRY_OPTIONS = [
     "United States",
     "Vietnam",
 ]
+
+persisted_state = load_persisted_state()
+persisted_state_version = int(persisted_state.get("state_version", 0)) if isinstance(persisted_state.get("state_version", 0), int) else 0
+for key, default in [("messages", PERSISTED_STATE_DEFAULTS["messages"]), ("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]), ("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]), ("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]), ("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]), ("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]), ("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]), ("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]), ("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]), ("api_key_set", False), ("weather_api_key_set", False), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", "")]:
+    if key not in st.session_state:
+        st.session_state[key] = persisted_state.get(key, default)
+
+if st.session_state.get("trip_country") not in COUNTRY_OPTIONS:
+    st.session_state.trip_country = PERSISTED_STATE_DEFAULTS["trip_country"]
+if st.session_state.get("trip_style") not in ["Adventure", "Relaxation", "Cultural", "Foodie", "Family", "Romantic"]:
+    st.session_state.trip_style = PERSISTED_STATE_DEFAULTS["trip_style"]
+try:
+    st.session_state.trip_days = int(st.session_state.get("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]))
+except Exception:
+    st.session_state.trip_days = PERSISTED_STATE_DEFAULTS["trip_days"]
+if st.session_state.get("budget_scope") not in ["Total trip budget", "Budget per day"]:
+    st.session_state.budget_scope = PERSISTED_STATE_DEFAULTS["budget_scope"]
+if st.session_state.get("budget_currency") not in ["USD", "EUR", "GBP", "PHP", "JPY", "AUD", "CAD", "SGD"]:
+    st.session_state.budget_currency = PERSISTED_STATE_DEFAULTS["budget_currency"]
+try:
+    st.session_state.budget_amount = float(st.session_state.get("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]))
+except Exception:
+    st.session_state.budget_amount = PERSISTED_STATE_DEFAULTS["budget_amount"]
+if not isinstance(st.session_state.get("messages"), list):
+    st.session_state.messages = []
+if persisted_state_version < PERSISTED_STATE_VERSION and st.session_state.get("budget_currency") == "USD":
+    st.session_state.budget_currency = PERSISTED_STATE_DEFAULTS["budget_currency"]
+
+if st.session_state.pop("reset_device_data_requested", False):
+    reset_persisted_state()
+    save_persisted_state()
 
 def get_theme_override_css(theme_mode):
     if theme_mode != "light":
@@ -1153,12 +1308,13 @@ with left:
     st.divider()
 
     st.markdown('<div class="section-label">🗺️ Trip Preferences</div>', unsafe_allow_html=True)
+    st.caption("Your preferences and chat history are saved locally on this device and restored after refresh.")
     trip_country = st.selectbox("Country", COUNTRY_OPTIONS, key="trip_country", help="Choose one country so WanderMind keeps the trip focused there.")
-    trip_style = st.selectbox("Travel Style", ["Adventure", "Relaxation", "Cultural", "Foodie", "Family", "Romantic"])
-    trip_days = st.number_input("Number of Days", min_value=1, max_value=30, value=5)
-    budget_scope = st.selectbox("Budget Scope", ["Total trip budget", "Budget per day"])
-    budget_currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "PHP", "JPY", "AUD", "CAD", "SGD"])
-    budget_amount = st.number_input("Budget Amount", min_value=1.0, value=1500.0, step=50.0)
+    trip_style = st.selectbox("Travel Style", ["Adventure", "Relaxation", "Cultural", "Foodie", "Family", "Romantic"], key="trip_style")
+    trip_days = st.number_input("Number of Days", min_value=1, max_value=30, value=5, key="trip_days")
+    budget_scope = st.selectbox("Budget Scope", ["Total trip budget", "Budget per day"], key="budget_scope")
+    budget_currency = st.selectbox("Currency", ["USD", "EUR", "GBP", "PHP", "JPY", "AUD", "CAD", "SGD"], key="budget_currency")
+    budget_amount = st.number_input("Budget Amount", min_value=1.0, value=1500.0, step=50.0, key="budget_amount")
     budget = f"{budget_currency} {budget_amount:,.0f} ({budget_scope.lower()})"
 
     st.markdown('<div class="section-label">📅 Trip Timing</div>', unsafe_allow_html=True)
@@ -1166,11 +1322,9 @@ with left:
     trip_date_text = st.text_input(
         "When would you take the trip?",
         placeholder="e.g. 2026-06-10, next July, or around Christmas",
-        value=st.session_state.trip_date_text,
+        key="trip_date_text",
         label_visibility="collapsed",
     )
-    if trip_date_text != st.session_state.trip_date_text:
-        st.session_state.trip_date_text = trip_date_text
 
     st.markdown('<div class="section-label">⚡ Quick Snapshot</div>', unsafe_allow_html=True)
     st.markdown(f"""
@@ -1233,7 +1387,7 @@ with left:
                         # keep dedupe hash so rerun doesn't reprocess the same audio
                         # set a one-time ignore so the immediate rerun doesn't process the same upload again
                         st.session_state.ignore_hash_once = voice_hash
-                        st.rerun()
+                        save_and_rerun()
                     else:
                         # Show preview for user to edit/confirm before sending
                         pass
@@ -1277,7 +1431,7 @@ with left:
                                     st.error(f"Error: {str(e)}")
                     # allow another recording after sending
                     st.session_state.last_voice_audio_hash = ""
-                    st.rerun()
+                    save_and_rerun()
         with col2:
             if st.button("Discard", key="discard_transcript"):
                 st.session_state.voice_preview_ready = False
@@ -1285,7 +1439,7 @@ with left:
                 st.session_state.voice_preview_cleared = True
                 # clear dedupe so user can immediately record again
                 st.session_state.last_voice_audio_hash = ""
-                st.rerun()
+                save_and_rerun()
         with col3:
             st.write(" ")
     st.divider()
@@ -1317,7 +1471,9 @@ with left:
 
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
-        st.rerun()
+        save_and_rerun()
+
+    st.button("Reset Saved Device Data", use_container_width=True, on_click=request_reset_persisted_state)
 
     st.markdown("""<div class="tip-box">💡 <b>Try asking:</b><br>
     • "Plan 5 days in Tokyo"<br>
@@ -1328,62 +1484,124 @@ with left:
     </div>""", unsafe_allow_html=True)
 
 with right:
-    st.markdown('<div class="chat-spacer"></div>', unsafe_allow_html=True)
+    components.html(
+        """
+        <script>
+        (function () {
+            function applyChatLayout() {
+                try {
+                    const parentDoc = window.parent && window.parent.document;
+                    if (!parentDoc) return;
 
-    if not st.session_state.messages:
-        st.markdown("""<div class="message-card chat-assistant">
-            <div class="chat-label assistant-label">🌍 WanderMind</div>
-            <b>Hello, fellow explorer! ✈️</b><br><br>
-            I'm WanderMind, your personal AI travel planner. I can help you:<br>
-            🗺️ &nbsp;Plan detailed day-by-day itineraries<br>
-            🏨 &nbsp;Find hotels & restaurants for your budget<br>
-            🌤️ &nbsp;Check weather at your destination<br>
-            🎒 &nbsp;Get packing lists & travel tips<br>
-            📋 &nbsp;Understand visa & safety requirements<br><br>
-            <b>Which country and when would you like to take the trip? 🌏</b>
-        </div>""", unsafe_allow_html=True)
+                    const shell = parentDoc.querySelector('div.stVerticalBlock.st-key-chat_shell');
+                    if (shell) {
+                        shell.style.position = 'fixed';
+                        shell.style.top = '1rem';
+                        // place the fixed shell back over its original column instead of pinning to the viewport right
+                        let container = shell.parentElement;
+                        while (container && !container.classList.contains('stColumn')) {
+                            container = container.parentElement;
+                        }
+                        if (container) {
+                            const rect = container.getBoundingClientRect();
+                            shell.style.setProperty('left', rect.left + 'px', 'important');
+                            shell.style.setProperty('right', 'auto', 'important');
+                            // match the column's width so there is no empty space
+                            shell.style.setProperty('width', rect.width + 'px', 'important');
+                            shell.style.boxSizing = 'border-box';
 
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            safe_content = html.escape(msg["content"]).replace("\n", "<br>")
-            st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div>{safe_content}</div>""", unsafe_allow_html=True)
-        else:
-            content = html.escape(msg["content"]).replace("\n", "<br>")
-            st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 WanderMind</div>{content}</div>""", unsafe_allow_html=True)
-            if msg.get("images"):
-                image_cols = st.columns(min(len(msg["images"]), 3))
-                for idx, image_data in enumerate(msg["images"]):
-                    with image_cols[idx]:
-                        if isinstance(image_data, str):
-                            st.image(image_data, use_container_width=True)
-                        else:
-                            st.image(image_data["url"], caption=image_data.get("caption"), use_container_width=True)
+                        } else {
+                            shell.style.right = '1rem';
+                            shell.style.width = 'min(34vw, 520px)';
+                        }
+                        shell.style.height = 'calc(100vh - 2rem)';
+                        shell.style.minHeight = '0';
+                        shell.style.zIndex = '5';
+                        shell.style.display = 'flex';
+                        shell.style.flexDirection = 'column';
+                    }
 
-    # ── KEY FIX: use st.chat_input — only fires when user presses Enter/Send ──
-    user_input = st.chat_input("Ask me anything... e.g. Plan a 5-day trip to Tokyo")
+                    const feed = parentDoc.querySelector('div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed');
+                    if (feed) {
+                        feed.style.flex = '1 1 auto';
+                        feed.style.minHeight = '0';
+                        feed.style.overflowY = 'auto';
+                    }
+                } catch (error) {
+                    // Ignore layout hook failures and fall back to the CSS rules.
+                }
+            }
 
-    if user_input:
-        if trip_country == COUNTRY_PLACEHOLDER:
-            st.warning("Choose a country first so I can keep the trip focused there.")
-        elif not st.session_state.api_key_set:
-            st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
-        elif wants_trip_schedule(user_input) and not st.session_state.trip_date_text.strip():
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
-            })
-            st.rerun()
-        else:
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            with st.spinner("WanderMind is thinking... 🌍"):
-                try:
-                    reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
-                    assistant_message = {"role": "assistant", "content": reply}
-                    images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
-                    if images:
-                        assistant_message["images"] = images
-                    st.session_state.messages.append(assistant_message)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+            applyChatLayout();
+            const observer = new MutationObserver(applyChatLayout);
+            observer.observe(document.documentElement, { childList: true, subtree: true });
+            setTimeout(applyChatLayout, 1000);
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+    with st.container(key="chat_shell"):
+        st.markdown('<div class="chat-spacer"></div>', unsafe_allow_html=True)
+
+        with st.container(key="chat_feed"):
+            if not st.session_state.messages:
+                st.markdown("""<div class="message-card chat-assistant">
+                    <div class="chat-label assistant-label">🌍 WanderMind</div>
+                    <b>Hello, fellow explorer! ✈️</b><br><br>
+                    I'm WanderMind, your personal AI travel planner. I can help you:<br>
+                    🗺️ &nbsp;Plan detailed day-by-day itineraries<br>
+                    🏨 &nbsp;Find hotels & restaurants for your budget<br>
+                    🌤️ &nbsp;Check weather at your destination<br>
+                    🎒 &nbsp;Get packing lists & travel tips<br>
+                    📋 &nbsp;Understand visa & safety requirements<br><br>
+                    <b>Which country and when would you like to take the trip? 🌏</b>
+                </div>""", unsafe_allow_html=True)
+
+            for msg in st.session_state.messages:
+                if msg["role"] == "user":
+                    safe_content = html.escape(msg["content"]).replace("\n", "<br>")
+                    st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div>{safe_content}</div>""", unsafe_allow_html=True)
+                else:
+                    content = html.escape(msg["content"]).replace("\n", "<br>")
+                    st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 WanderMind</div>{content}</div>""", unsafe_allow_html=True)
+                    if msg.get("images"):
+                        image_cols = st.columns(min(len(msg["images"]), 3))
+                        for idx, image_data in enumerate(msg["images"]):
+                            with image_cols[idx]:
+                                if isinstance(image_data, str):
+                                    st.image(image_data, use_container_width=True)
+                                else:
+                                    st.image(image_data["url"], caption=image_data.get("caption"), use_container_width=True)
+
+        # ── KEY FIX: use st.chat_input — only fires when user presses Enter/Send ──
+        user_input = st.chat_input("Ask me anything... e.g. Plan a 5-day trip to Tokyo")
+
+        if user_input:
+            if trip_country == COUNTRY_PLACEHOLDER:
+                st.warning("Choose a country first so I can keep the trip focused there.")
+            elif not st.session_state.api_key_set:
+                st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
+            elif wants_trip_schedule(user_input) and not st.session_state.trip_date_text.strip():
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
+                })
+                save_and_rerun()
+            else:
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                with st.spinner("WanderMind is thinking... 🌍"):
+                    try:
+                        reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
+                        assistant_message = {"role": "assistant", "content": reply}
+                        images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
+                        if images:
+                            assistant_message["images"] = images
+                        st.session_state.messages.append(assistant_message)
+                        save_and_rerun()
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+
+save_persisted_state()
