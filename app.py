@@ -559,6 +559,8 @@ div[data-testid="stToggle"] [data-testid="stMarkdownContainer"] {
 [data-testid="stChatInputContainer"] textarea {
     background: transparent !important;
     color: var(--text) !important;
+    padding: 0.72rem 3.25rem 0.72rem 1rem !important;
+    line-height: 1.35 !important;
 }
 .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label,
 .stCheckbox label, .stAudioInput label, .stToggle label, .stChatInput label,
@@ -628,6 +630,8 @@ html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_s
     width: min(34vw, 520px) !important;
     height: calc(100vh - 2rem) !important;
     min-height: 0 !important;
+    padding-bottom: 0.35rem !important;
+    box-sizing: border-box !important;
     z-index: 5 !important;
 }
 html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell > div {
@@ -666,6 +670,11 @@ html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_s
 html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed::-webkit-scrollbar-thumb {
     background: var(--input-border);
     border-radius: 999px;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell > [data-testid="stElementContainer"]:has(.stChatInput) {
+    flex: 0 0 auto !important;
+    overflow: visible !important;
+    min-height: 76px !important;
 }
 @media (max-width: 1100px) {
     html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell {
@@ -1488,6 +1497,29 @@ with right:
         """
         <script>
         (function () {
+            let lastFeedHeight = 0;
+            let lastMessageCount = 0;
+
+            function scrollChatToLatest(feed, force) {
+                const parentDoc = window.parent && window.parent.document;
+                const anchor = parentDoc && parentDoc.getElementById('chat-bottom-anchor');
+                const shell = parentDoc && parentDoc.querySelector('div.stVerticalBlock.st-key-chat_shell');
+                const messageCount = feed.querySelectorAll('.message-card').length;
+                const heightChanged = feed.scrollHeight !== lastFeedHeight;
+                const messageChanged = messageCount !== lastMessageCount;
+
+                if (force || heightChanged || messageChanged) {
+                    window.requestAnimationFrame(function () {
+                        feed.scrollTop = feed.scrollHeight;
+                        if (anchor && shell && window.getComputedStyle(shell).position !== 'fixed') {
+                            anchor.scrollIntoView({ block: 'end', behavior: 'auto' });
+                        }
+                        lastFeedHeight = feed.scrollHeight;
+                        lastMessageCount = messageCount;
+                    });
+                }
+            }
+
             function applyChatLayout() {
                 try {
                     const parentDoc = window.parent && window.parent.document;
@@ -1526,6 +1558,7 @@ with right:
                         feed.style.flex = '1 1 auto';
                         feed.style.minHeight = '0';
                         feed.style.overflowY = 'auto';
+                        scrollChatToLatest(feed, false);
                     }
                 } catch (error) {
                     // Ignore layout hook failures and fall back to the CSS rules.
@@ -1534,8 +1567,14 @@ with right:
 
             applyChatLayout();
             const observer = new MutationObserver(applyChatLayout);
-            observer.observe(document.documentElement, { childList: true, subtree: true });
-            setTimeout(applyChatLayout, 1000);
+            const observedDoc = (window.parent && window.parent.document) || document;
+            observer.observe(observedDoc.documentElement, { childList: true, subtree: true });
+            setTimeout(function () {
+                applyChatLayout();
+                const parentDoc = window.parent && window.parent.document;
+                const feed = parentDoc && parentDoc.querySelector('div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed');
+                if (feed) scrollChatToLatest(feed, true);
+            }, 1000);
         })();
         </script>
         """,
@@ -1574,9 +1613,11 @@ with right:
                                     st.image(image_data, use_container_width=True)
                                 else:
                                     st.image(image_data["url"], caption=image_data.get("caption"), use_container_width=True)
+            st.markdown('<div id="chat-bottom-anchor"></div>', unsafe_allow_html=True)
 
         # ── KEY FIX: use st.chat_input — only fires when user presses Enter/Send ──
-        user_input = st.chat_input("Ask me anything... e.g. Plan a 5-day trip to Tokyo")
+        chat_placeholder = "Ask me anything... e.g. Plan a 5-day trip to Tokyo" if not st.session_state.messages else ""
+        user_input = st.chat_input(chat_placeholder)
 
         if user_input:
             if trip_country == COUNTRY_PLACEHOLDER:
