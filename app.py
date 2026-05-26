@@ -27,13 +27,18 @@ st.markdown("""
     --line: rgba(125, 168, 194, 0.18);
     --line-strong: rgba(233, 168, 74, 0.26);
     --text: #f2e9db;
-    --muted: #91a7b6;
-    --soft-text: #c9d7df;
+    --muted: #b4c5d1;
+    --soft-text: #d3e0e8;
     --accent: #e9a84a;
     --accent-2: #66b4c9;
+    --accent-soft: rgba(233, 168, 74, 0.14);
+    --accent-strong: rgba(233, 168, 74, 0.32);
+    --accent-2-soft: rgba(102, 180, 201, 0.16);
     --stat-value: #fff4df;
     --stat-label: #b7c7d2;
+    --hero-title: linear-gradient(90deg, #ffd89b, #e9a84a 55%, #fff0c9);
     --hero-bg: linear-gradient(135deg, rgba(19, 33, 50, 0.92), rgba(10, 18, 29, 0.86));
+    --hero-glow: linear-gradient(135deg, rgba(233,168,74,0.16), transparent 32%, rgba(102,180,201,0.10));
     --card-bg: rgba(13, 23, 35, 0.78);
     --card-bg-strong: rgba(18, 34, 53, 0.92);
     --card-border: var(--line);
@@ -41,26 +46,111 @@ st.markdown("""
     --input-bg: rgba(10, 18, 29, 0.9);
     --input-border: rgba(125, 168, 194, 0.22);
     --input-focus: rgba(233, 168, 74, 0.55);
+    --input-focus-ring: rgba(233, 168, 74, 0.12);
+    --placeholder: #b4c5d1;
+    --chat-bar-bg: rgba(11, 18, 29, 0.96);
     --chat-input-bg: rgba(12, 21, 34, 0.92);
+    --chat-send-bg: rgba(255, 255, 255, 0.08);
+    --chat-send-text: #f2e9db;
+    --checkbox-bg: rgba(10, 18, 29, 0.92);
+    --checkbox-check: #09111a;
+    --audio-bg: rgba(12, 21, 34, 0.92);
+    --audio-control-bg: rgba(255, 255, 255, 0.08);
+    --audio-wave-bg: rgba(18, 34, 53, 0.88);
+    --audio-wave-line: #e9a84a;
+    --audio-text: #d3e0e8;
+    --audio-muted: #b4c5d1;
+    --audio-timer-bg: rgba(10, 18, 29, 0.72);
     --button-bg: linear-gradient(135deg, #f0b356, #e79f35);
     --button-bg-hover: linear-gradient(135deg, #f3bc67, #f0a93f);
     --button-text: #09111a;
     --weather-title: #e8a84a;
     --weather-temp: #fff4df;
-    --weather-meta: #8aabb5;
-    --weather-meta-2: #6a8898;
+    --weather-meta: #b0c3cf;
+    --weather-meta-2: #a7bac7;
     --bubble-user-bg: linear-gradient(135deg, rgba(30, 58, 95, 0.95), rgba(22, 44, 72, 0.95));
     --bubble-assistant-bg: linear-gradient(135deg, rgba(21, 32, 48, 0.96), rgba(18, 34, 53, 0.96));
     --bubble-text: #dbeaf1;
     --bubble-label-user: #f0be6c;
     --bubble-label-assistant: #7fc1d4;
+    --bubble-user-border: var(--accent);
+    --bubble-assistant-border: var(--accent-2);
+    --app-grid: rgba(255, 255, 255, 0.025);
+    --app-grid-mask: rgba(0, 0, 0, 0.35);
+    --app-accent-glow: rgba(233, 168, 74, 0.14);
+    --app-accent-2-glow: rgba(102, 180, 201, 0.12);
     --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    --button-shadow: rgba(233, 168, 74, 0.18);
+}
+[data-theme-mode="light"] {
+    --bg-0: #f6f8fb;
+    --bg-1: #eef3f8;
+    --bg-2: #e6edf5;
+    --panel: rgba(255, 255, 255, 0.80);
+    --panel-strong: rgba(255, 255, 255, 0.94);
+    --line: rgba(52, 82, 108, 0.14);
+    --line-strong: rgba(211, 140, 34, 0.24);
+    --text: #122130;
+    --muted: #4e6375;
+    --soft-text: #263c50;
+    --accent: #a76507;
+    --accent-2: #2b7184;
+    --accent-soft: rgba(211, 140, 34, 0.12);
+    --accent-strong: rgba(211, 140, 34, 0.26);
+    --accent-2-soft: rgba(52, 123, 143, 0.12);
+    --stat-value: #182838;
+    --stat-label: #4e6375;
+    --hero-title: linear-gradient(90deg, #875204, #a76507 55%, #bd7410);
+    --hero-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.93), rgba(241, 246, 250, 0.92));
+    --hero-glow: linear-gradient(135deg, rgba(211,140,34,0.14), transparent 32%, rgba(52,123,143,0.08));
+    --card-bg: rgba(255, 255, 255, 0.82);
+    --card-bg-strong: rgba(255, 255, 255, 0.92);
+    --card-border: rgba(52, 82, 108, 0.14);
+    --panel-border: rgba(52, 82, 108, 0.14);
+    --input-bg: rgba(255, 255, 255, 0.94);
+    --input-border: rgba(52, 82, 108, 0.18);
+    --input-focus: rgba(211, 140, 34, 0.55);
+    --input-focus-ring: rgba(211, 140, 34, 0.13);
+    --placeholder: #5b7082;
+    --chat-bar-bg: rgba(255, 255, 255, 0.88);
+    --chat-input-bg: rgba(255, 255, 255, 0.94);
+    --chat-send-bg: #eef3f8;
+    --chat-send-text: #31475b;
+    --checkbox-bg: rgba(255, 255, 255, 0.96);
+    --checkbox-check: #ffffff;
+    --audio-bg: rgba(255, 255, 255, 0.92);
+    --audio-control-bg: rgba(238, 243, 248, 0.98);
+    --audio-wave-bg: rgba(255, 255, 255, 0.84);
+    --audio-wave-line: #a76507;
+    --audio-text: #263c50;
+    --audio-muted: #4e6375;
+    --audio-timer-bg: rgba(238, 243, 248, 0.98);
+    --button-bg: linear-gradient(135deg, #d39224, #a76507);
+    --button-bg-hover: linear-gradient(135deg, #df9f31, #b8710c);
+    --button-text: #ffffff;
+    --weather-title: #875204;
+    --weather-temp: #182838;
+    --weather-meta: #4b6476;
+    --weather-meta-2: #526b7d;
+    --bubble-user-bg: linear-gradient(135deg, rgba(242, 248, 252, 0.98), rgba(233, 242, 249, 0.96));
+    --bubble-assistant-bg: linear-gradient(135deg, rgba(251, 252, 253, 0.98), rgba(243, 247, 250, 0.96));
+    --bubble-text: #203241;
+    --bubble-label-user: #875204;
+    --bubble-label-assistant: #2b7184;
+    --bubble-user-border: var(--accent);
+    --bubble-assistant-border: var(--accent-2);
+    --app-grid: rgba(18, 33, 48, 0.04);
+    --app-grid-mask: rgba(0, 0, 0, 0.16);
+    --app-accent-glow: rgba(211, 140, 34, 0.12);
+    --app-accent-2-glow: rgba(52, 123, 143, 0.10);
+    --shadow: 0 18px 38px rgba(34, 52, 72, 0.10);
+    --button-shadow: rgba(211, 140, 34, 0.16);
 }
 html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
 .stApp {
     background:
-        radial-gradient(circle at top left, rgba(233, 168, 74, 0.14), transparent 24%),
-        radial-gradient(circle at top right, rgba(102, 180, 201, 0.12), transparent 28%),
+        radial-gradient(circle at top left, var(--app-accent-glow), transparent 24%),
+        radial-gradient(circle at top right, var(--app-accent-2-glow), transparent 28%),
         linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
     color: var(--text);
 }
@@ -69,9 +159,9 @@ html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
     position: fixed;
     inset: 0;
     pointer-events: none;
-    background-image: linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-image: linear-gradient(var(--app-grid) 1px, transparent 1px), linear-gradient(90deg, var(--app-grid) 1px, transparent 1px);
     background-size: 36px 36px;
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.35), transparent 85%);
+    mask-image: linear-gradient(to bottom, var(--app-grid-mask), transparent 85%);
     opacity: 0.35;
 }
 #MainMenu, footer, header { visibility: hidden; }
@@ -101,7 +191,7 @@ section[data-testid="stSidebar"] { display: none !important; }
     content: "";
     position: absolute;
     inset: -1px;
-    background: linear-gradient(135deg, rgba(233,168,74,0.16), transparent 32%, rgba(102,180,201,0.10));
+    background: var(--hero-glow);
     pointer-events: none;
 }
 .hero-title {
@@ -110,7 +200,7 @@ section[data-testid="stSidebar"] { display: none !important; }
     line-height: 1;
     font-weight: 700;
     letter-spacing: 0.01em;
-    background: linear-gradient(90deg, #ffd89b, #e9a84a 55%, #fff0c9);
+    background: var(--hero-title);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -157,7 +247,7 @@ section[data-testid="stSidebar"] { display: none !important; }
 }
 .quick-stat:hover, .message-card:hover, .weather-card:hover, .tip-box:hover {
     transform: translateY(-1px);
-    border-color: rgba(233, 168, 74, 0.24);
+    border-color: var(--accent-strong);
 }
 .quick-stat-label { color: var(--stat-label); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em; }
 .quick-stat-value { color: var(--stat-value); font-size: 0.96rem; font-weight: 700; margin-top: 0.3rem; }
@@ -171,12 +261,12 @@ section[data-testid="stSidebar"] { display: none !important; }
 }
 .chat-user {
     background: var(--bubble-user-bg);
-    border-left: 3px solid #e9a84a;
+    border-left: 3px solid var(--bubble-user-border);
     color: var(--text);
 }
 .chat-assistant {
     background: var(--bubble-assistant-bg);
-    border-left: 3px solid #66b4c9;
+    border-left: 3px solid var(--bubble-assistant-border);
     color: var(--bubble-text);
 }
 .chat-label {
@@ -190,15 +280,20 @@ section[data-testid="stSidebar"] { display: none !important; }
 .assistant-label { color: var(--bubble-label-assistant); }
 .weather-card {
     background: var(--card-bg-strong);
-    border: 1px solid rgba(233, 168, 74, 0.22);
+    border: 1px solid var(--accent-strong);
     border-radius: 16px;
     padding: 0.9rem 1rem;
     margin-top: 0.5rem;
     transition: transform 180ms ease, border-color 180ms ease;
 }
+.weather-emoji { font-size: 1.5rem; }
+.weather-city { color: var(--weather-title); font-weight: 700; }
+.weather-temp { color: var(--weather-temp); font-size: 1.3rem; font-weight: 700; }
+.weather-desc { color: var(--weather-meta); font-size: 0.82rem; }
+.weather-meta { color: var(--weather-meta-2); font-size: 0.75rem; margin-top: 4px; }
 .tip-box {
     background: var(--card-bg-strong);
-    border: 1px solid rgba(102, 180, 201, 0.18);
+    border: 1px solid var(--accent-2-soft);
     border-radius: 16px;
     padding: 0.9rem 1rem;
     font-size: 0.83rem;
@@ -209,7 +304,18 @@ section[data-testid="stSidebar"] { display: none !important; }
 .stTextInput > div > div > input,
 .stSelectbox > div > div,
 .stNumberInput > div > div > input,
-.stTextArea textarea {
+.stTextArea textarea,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stNumberInput"] button,
+[data-testid="stTextArea"] textarea,
+[data-baseweb="select"],
+[data-baseweb="select"] > div,
+[data-baseweb="base-input"],
+[data-baseweb="input"],
+[data-baseweb="input"] > div,
+[data-baseweb="textarea"],
+[data-baseweb="textarea"] > div {
     background: var(--input-bg) !important;
     color: var(--text) !important;
     border: 1px solid var(--input-border) !important;
@@ -227,45 +333,233 @@ section[data-testid="stSidebar"] { display: none !important; }
 .stTextInput > div > div > input:focus,
 .stSelectbox > div > div:focus-within,
 .stNumberInput > div > div > input:focus,
-.stTextArea textarea:focus {
+.stTextArea textarea:focus,
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus,
+[data-baseweb="select"]:focus-within,
+[data-baseweb="input"]:focus-within,
+[data-baseweb="textarea"]:focus-within {
     border-color: var(--input-focus) !important;
-    box-shadow: 0 0 0 3px rgba(233, 168, 74, 0.12) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
 }
-.stButton > button {
+[data-testid="stNumberInput"] [data-baseweb="input"],
+[data-testid="stNumberInput"] [data-baseweb="input"] > div,
+[data-testid="stNumberInput"] input,
+[data-testid="stNumberInput"] button {
+    outline: none !important;
+    border-color: var(--input-border) !important;
+}
+[data-testid="stNumberInput"] [data-baseweb="input"],
+[data-testid="stNumberInput"] [data-baseweb="input"] > div {
+    overflow: hidden !important;
+}
+[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within,
+[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within > div {
+    border-color: var(--input-focus) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+}
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stNumberInput"] input:focus-visible,
+[data-testid="stNumberInput"] button:focus,
+[data-testid="stNumberInput"] button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+.stButton > button,
+[data-testid="stButton"] button {
     background: var(--button-bg) !important;
     color: var(--button-text) !important;
     border: none !important;
     border-radius: 12px !important;
     font-weight: 700 !important;
     transition: transform 180ms ease, filter 180ms ease, box-shadow 180ms ease !important;
-    box-shadow: 0 10px 24px rgba(233, 168, 74, 0.18);
+    box-shadow: 0 10px 24px var(--button-shadow);
 }
-.stButton > button:hover {
+.stButton > button:hover,
+[data-testid="stButton"] button:hover {
     transform: translateY(-1px);
     filter: brightness(1.03);
 }
-.stChatInput {
+[data-testid="stCheckbox"],
+[data-testid="stCheckbox"] label,
+[data-testid="stCheckbox"] p,
+[data-testid="stCheckbox"] span,
+[data-testid="stCheckbox"] [data-testid="stMarkdownContainer"],
+div[data-testid="stToggle"] label,
+div[data-testid="stToggle"] p,
+div[data-testid="stToggle"] span,
+div[data-testid="stToggle"] [data-testid="stMarkdownContainer"] {
+    color: var(--text) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"] {
+    display: inline-flex !important;
+    align-items: center !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"] > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"] > span:first-child > div {
+    position: relative !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"] > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"] > span:first-child > div {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+    min-width: 1.05rem !important;
+    background: var(--checkbox-bg) !important;
+    border: 1.5px solid var(--input-border) !important;
+    border-radius: 5px !important;
+    color: var(--checkbox-check) !important;
+    box-shadow: none !important;
+    transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] svg {
+    background: transparent !important;
+    color: var(--checkbox-check) !important;
+    fill: none !important;
+    opacity: 0 !important;
+    stroke: currentColor !important;
+    stroke-width: 3 !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"]:has(input:checked) > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"]:has(input:checked) > span:first-child > div,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][aria-checked="true"] > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][aria-checked="true"] > span:first-child > div,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][data-wandermind-checked="true"] > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][data-wandermind-checked="true"] > span:first-child > div,
+.st-key-voice_auto_send [data-testid="stCheckbox"][data-wandermind-checked="true"] [data-baseweb="checkbox"] > div:first-child,
+.st-key-voice_auto_send [data-testid="stCheckbox"][data-wandermind-checked="true"] [data-baseweb="checkbox"] > span:first-child > div {
+    background: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--input-focus-ring) !important;
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"]:has(input:checked) > div:first-child::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"]:has(input:checked) > span:first-child > div::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][aria-checked="true"] > div:first-child::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][aria-checked="true"] > span:first-child > div::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][data-wandermind-checked="true"] > div:first-child::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"] [data-baseweb="checkbox"][data-wandermind-checked="true"] > span:first-child > div::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"][data-wandermind-checked="true"] [data-baseweb="checkbox"] > div:first-child::after,
+.st-key-voice_auto_send [data-testid="stCheckbox"][data-wandermind-checked="true"] [data-baseweb="checkbox"] > span:first-child > div::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.34rem;
+    height: 0.62rem;
+    border: solid var(--checkbox-check);
+    border-width: 0 0.14rem 0.14rem 0;
+    transform: translate(-50%, -58%) rotate(45deg);
+}
+.st-key-voice_auto_send [data-testid="stCheckbox"] input {
+    accent-color: var(--accent) !important;
+}
+[data-testid="stAudioInput"],
+[data-testid="stAudioInput"] > div,
+[data-testid="stAudioInput"] section,
+[data-testid="stAudioInput"] [data-testid="stAudioInputRecorder"],
+[data-testid="stAudioInput"] [data-testid="stAudioInputWaveform"],
+[data-testid="stAudioInput"] [data-testid="stAudioInputTimer"] {
+    background: var(--audio-bg) !important;
+    color: var(--audio-text) !important;
+    border-color: var(--input-border) !important;
+}
+[data-testid="stAudioInput"] section,
+[data-testid="stAudioInput"] [data-testid="stAudioInputRecorder"],
+[data-testid="stAudioInput"] [data-testid="stAudioInputWaveform"] {
+    border: 1px solid var(--input-border) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--shadow) !important;
+}
+[data-testid="stAudioInput"] button,
+[data-testid="stAudioInput"] svg {
+    background: var(--audio-control-bg) !important;
+    color: var(--audio-muted) !important;
+    fill: currentColor !important;
+    border-radius: 12px !important;
+}
+[data-testid="stAudioInput"] canvas,
+[data-testid="stAudioInput"] [role="progressbar"],
+[data-testid="stAudioInput"] [aria-valuenow] {
+    background: var(--audio-wave-bg) !important;
+    color: var(--audio-wave-line) !important;
+    accent-color: var(--accent) !important;
+}
+[data-testid="stAudioInput"] time,
+[data-testid="stAudioInput"] code,
+[data-testid="stAudioInput"] [data-testid="stAudioInputTimer"] {
+    background: var(--audio-timer-bg) !important;
+    color: var(--audio-text) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 10px !important;
+    padding: 0.1rem 0.35rem !important;
+}
+.stChatInput,
+[data-testid="stBottom"],
+[data-testid="stBottom"] > div,
+[data-testid="stBottom"] [data-testid="stVerticalBlock"],
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] > div,
+[data-testid="stChatInputContainer"],
+[data-testid="stChatInputContainer"] > div {
+    background: var(--chat-bar-bg) !important;
+    color: var(--text) !important;
+    border-color: var(--input-border) !important;
+}
+.stChatInput,
+[data-testid="stChatInput"],
+[data-testid="stChatInput"] > div,
+[data-testid="stChatInputContainer"],
+[data-testid="stChatInputContainer"] > div,
+[data-testid="stChatInputContainer"] textarea {
     background: var(--chat-input-bg) !important;
     border: 1px solid var(--input-border) !important;
     border-radius: 16px !important;
     box-shadow: var(--shadow) !important;
 }
+[data-testid="stBottom"] {
+    border: none !important;
+    box-shadow: none !important;
+}
+[data-testid="stChatInputContainer"] button,
+[data-testid="stChatInput"] button {
+    background: var(--chat-send-bg) !important;
+    color: var(--chat-send-text) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 12px !important;
+}
+[data-testid="stChatInputContainer"] button svg,
+[data-testid="stChatInput"] button svg {
+    color: var(--chat-send-text) !important;
+    fill: currentColor !important;
+}
 .stDivider {
     margin: 1rem 0 !important;
 }
-.stChatInput textarea {
+.stChatInput textarea,
+[data-testid="stChatInput"] textarea,
+[data-testid="stChatInputContainer"] textarea {
     background: transparent !important;
     color: var(--text) !important;
 }
 .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label,
-.stCheckbox label, .stAudioInput label, .stToggle label, .stChatInput label {
+.stCheckbox label, .stAudioInput label, .stToggle label, .stChatInput label,
+.stTextInput label, .stSelectbox label, .stNumberInput label,
+div[data-testid="stToggle"] label,
+[data-testid="stTextInput"] label,
+[data-testid="stSelectbox"] label,
+[data-testid="stNumberInput"] label,
+[data-testid="stCheckbox"] label,
+[data-testid="stAudioInput"] label {
     color: var(--text) !important;
 }
 .stTextInput input::placeholder,
 .stNumberInput input::placeholder,
 .stTextArea textarea::placeholder,
-.stChatInput textarea::placeholder {
-    color: var(--muted) !important;
+.stChatInput textarea::placeholder,
+[data-testid="stChatInputContainer"] textarea::placeholder {
+    color: var(--placeholder) !important;
     opacity: 1 !important;
 }
 .stSelectbox [data-baseweb="select"] > div,
@@ -276,8 +570,35 @@ section[data-testid="stSidebar"] { display: none !important; }
     background: var(--input-bg) !important;
     color: var(--text) !important;
 }
+[data-baseweb="popover"],
+[data-baseweb="menu"] {
+    background: var(--panel-strong) !important;
+    border: 1px solid var(--card-border) !important;
+    border-radius: 14px !important;
+    color: var(--text) !important;
+    box-shadow: var(--shadow) !important;
+}
+[role="listbox"],
+[role="option"] {
+    background: var(--panel-strong) !important;
+    color: var(--text) !important;
+}
+[role="option"]:hover,
+[role="option"][aria-selected="true"] {
+    background: var(--accent-soft) !important;
+    color: var(--text) !important;
+}
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] span,
+[data-testid="stMarkdownContainer"] strong {
+    color: inherit;
+}
 .stImage img {
     border-radius: 14px;
+}
+.chat-spacer {
+    height: 0.2rem;
 }
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(8px); }
@@ -326,111 +647,60 @@ def get_theme_override_css(theme_mode):
     --line: rgba(52, 82, 108, 0.14);
     --line-strong: rgba(211, 140, 34, 0.24);
     --text: #122130;
-    --muted: #5f7284;
-    --soft-text: #31475b;
-    --accent: #d38c22;
-    --accent-2: #347b8f;
+    --muted: #4e6375;
+    --soft-text: #263c50;
+    --accent: #a76507;
+    --accent-2: #2b7184;
+    --accent-soft: rgba(211, 140, 34, 0.12);
+    --accent-strong: rgba(211, 140, 34, 0.26);
+    --accent-2-soft: rgba(52, 123, 143, 0.12);
     --stat-value: #182838;
-    --stat-label: #587085;
+    --stat-label: #4e6375;
+    --hero-title: linear-gradient(90deg, #875204, #a76507 55%, #bd7410);
     --hero-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.93), rgba(241, 246, 250, 0.92));
+    --hero-glow: linear-gradient(135deg, rgba(211,140,34,0.14), transparent 32%, rgba(52,123,143,0.08));
     --card-bg: rgba(255, 255, 255, 0.82);
     --card-bg-strong: rgba(255, 255, 255, 0.92);
     --card-border: rgba(52, 82, 108, 0.14);
     --panel-border: rgba(52, 82, 108, 0.14);
-    --input-bg: rgba(255, 255, 255, 0.92);
+    --input-bg: rgba(255, 255, 255, 0.94);
     --input-border: rgba(52, 82, 108, 0.18);
     --input-focus: rgba(211, 140, 34, 0.55);
-    --chat-input-bg: rgba(255, 255, 255, 0.92);
-    --button-bg: linear-gradient(135deg, #e6ab42, #d38c22);
-    --button-bg-hover: linear-gradient(135deg, #edbd64, #de992f);
-    --button-text: #111b26;
-    --weather-title: #bb7812;
+    --input-focus-ring: rgba(211, 140, 34, 0.13);
+    --placeholder: #5b7082;
+    --chat-bar-bg: rgba(255, 255, 255, 0.88);
+    --chat-input-bg: rgba(255, 255, 255, 0.94);
+    --chat-send-bg: #eef3f8;
+    --chat-send-text: #31475b;
+    --checkbox-bg: rgba(255, 255, 255, 0.96);
+    --checkbox-check: #ffffff;
+    --audio-bg: rgba(255, 255, 255, 0.92);
+    --audio-control-bg: rgba(238, 243, 248, 0.98);
+    --audio-wave-bg: rgba(255, 255, 255, 0.84);
+    --audio-wave-line: #a76507;
+    --audio-text: #263c50;
+    --audio-muted: #4e6375;
+    --audio-timer-bg: rgba(238, 243, 248, 0.98);
+    --button-bg: linear-gradient(135deg, #d39224, #a76507);
+    --button-bg-hover: linear-gradient(135deg, #df9f31, #b8710c);
+    --button-text: #ffffff;
+    --weather-title: #875204;
     --weather-temp: #182838;
-    --weather-meta: #547082;
-    --weather-meta-2: #6a8898;
+    --weather-meta: #4b6476;
+    --weather-meta-2: #526b7d;
     --bubble-user-bg: linear-gradient(135deg, rgba(242, 248, 252, 0.98), rgba(233, 242, 249, 0.96));
     --bubble-assistant-bg: linear-gradient(135deg, rgba(251, 252, 253, 0.98), rgba(243, 247, 250, 0.96));
     --bubble-text: #203241;
-    --bubble-label-user: #bb7812;
-    --bubble-label-assistant: #347b8f;
+    --bubble-label-user: #875204;
+    --bubble-label-assistant: #2b7184;
+    --bubble-user-border: var(--accent);
+    --bubble-assistant-border: var(--accent-2);
+    --app-grid: rgba(18, 33, 48, 0.04);
+    --app-grid-mask: rgba(0, 0, 0, 0.16);
+    --app-accent-glow: rgba(211, 140, 34, 0.12);
+    --app-accent-2-glow: rgba(52, 123, 143, 0.10);
     --shadow: 0 18px 38px rgba(34, 52, 72, 0.10);
-}
-.stApp {
-    background:
-        radial-gradient(circle at top left, rgba(211, 140, 34, 0.12), transparent 24%),
-        radial-gradient(circle at top right, rgba(52, 123, 143, 0.10), transparent 28%),
-        linear-gradient(135deg, var(--bg-0) 0%, var(--bg-1) 45%, var(--bg-2) 100%);
-    color: var(--text);
-}
-.stApp::before {
-    background-image: linear-gradient(rgba(18,33,48,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(18,33,48,0.04) 1px, transparent 1px);
-    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.16), transparent 85%);
-    opacity: 0.45;
-}
-.hero-card::after {
-    background: linear-gradient(135deg, rgba(211,140,34,0.14), transparent 32%, rgba(52,123,143,0.08));
-}
-.hero-title {
-    background: linear-gradient(90deg, #b9750c, #d38c22 55%, #efb24d);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-.hero-copy, .tip-box, .quick-stat-label, .section-label, .panel-label, .hero-sub {
-    color: var(--muted) !important;
-}
-.quick-stat, .weather-card, .tip-box, .section-card, .message-card, .hero-card {
-    background: var(--card-bg) !important;
-    border-color: var(--card-border) !important;
-}
-.chat-user {
-    background: var(--bubble-user-bg) !important;
-    border-left-color: #d38c22 !important;
-    color: var(--text) !important;
-}
-.chat-assistant {
-    background: var(--bubble-assistant-bg) !important;
-    border-left-color: #347b8f !important;
-    color: var(--bubble-text) !important;
-}
-.quick-stat-label { color: var(--stat-label) !important; }
-.quick-stat-value { color: var(--stat-value) !important; }
-.user-label { color: var(--bubble-label-user) !important; }
-.assistant-label { color: var(--bubble-label-assistant) !important; }
-.stTextInput > div > div > input,
-.stSelectbox > div > div,
-.stNumberInput > div > div > input,
-.stTextArea textarea,
-.stChatInput,
-.stChatInput textarea {
-    background: var(--input-bg) !important;
-    color: var(--text) !important;
-    border-color: var(--input-border) !important;
-}
-.stTextInput > div > div > input:focus,
-.stSelectbox > div > div:focus-within,
-.stNumberInput > div > div > input:focus,
-.stTextArea textarea:focus {
-    border-color: var(--input-focus) !important;
-    box-shadow: 0 0 0 3px rgba(211, 140, 34, 0.12) !important;
-}
-.stButton > button {
-    background: var(--button-bg) !important;
-    color: var(--button-text) !important;
-    box-shadow: 0 10px 24px rgba(211, 140, 34, 0.16) !important;
-}
-.stChatInput {
-    background: var(--chat-input-bg) !important;
-}
-.stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label,
-.stCheckbox label, .stAudioInput label, .stToggle label, .stChatInput label {
-    color: var(--text) !important;
-}
-.stTextInput input::placeholder,
-.stNumberInput input::placeholder,
-.stTextArea textarea::placeholder,
-.stChatInput textarea::placeholder {
-    color: var(--muted) !important;
-    opacity: 1 !important;
+    --button-shadow: rgba(211, 140, 34, 0.16);
 }
 </style>
 """
@@ -803,7 +1073,8 @@ with left:
         st.markdown(f'<div class="quick-stat"><div class="quick-stat-label">Budget</div><div class="quick-stat-value">{budget_currency} {budget_amount:,.0f}</div></div>', unsafe_allow_html=True)
 
     st.markdown('<div class="section-label">🎙️ Voice Intent</div>', unsafe_allow_html=True)
-    auto_send = st.checkbox("Auto-send on record (push-to-talk)", value=False, help="When enabled, recordings are transcribed and sent immediately.")
+    with st.container(key="voice_auto_send"):
+        auto_send = st.checkbox("Auto-send on record (push-to-talk)", value=False, help="When enabled, recordings are transcribed and sent immediately.")
     voice_audio = st.audio_input("Record your travel request", label_visibility="collapsed")
     if voice_audio is not None:
         voice_bytes = audio_bytes_from_input(voice_audio)
@@ -915,12 +1186,14 @@ with left:
             with st.spinner("Fetching..."):
                 wd = get_weather(weather_city, st.session_state.weather_key)
                 if wd:
+                    safe_city = html.escape(wd["city"])
+                    safe_desc = html.escape(wd["description"].capitalize())
                     st.markdown(f"""<div class="weather-card">
-                        <div style="font-size:1.5rem">{wd['emoji']}</div>
-                        <div style="font-weight:600;color:#e8a84a">{wd['city']}</div>
-                        <div style="font-size:1.3rem;font-weight:700">{wd['temp']}°C</div>
-                        <div style="color:#8aabb5;font-size:0.82rem">{wd['description'].capitalize()}</div>
-                        <div style="color:#6a8898;font-size:0.75rem;margin-top:4px">💧 {wd['humidity']}% &nbsp;|&nbsp; 💨 {wd['wind']} m/s</div>
+                        <div class="weather-emoji">{wd['emoji']}</div>
+                        <div class="weather-city">{safe_city}</div>
+                        <div class="weather-temp">{wd['temp']}°C</div>
+                        <div class="weather-desc">{safe_desc}</div>
+                        <div class="weather-meta">💧 {wd['humidity']}% &nbsp;|&nbsp; 💨 {wd['wind']} m/s</div>
                     </div>""", unsafe_allow_html=True)
                 else:
                     st.error("City not found.")
@@ -940,7 +1213,7 @@ with left:
     </div>""", unsafe_allow_html=True)
 
 with right:
-    st.markdown("<div style='height:0.2rem'></div>", unsafe_allow_html=True)
+    st.markdown('<div class="chat-spacer"></div>', unsafe_allow_html=True)
 
     if not st.session_state.messages:
         st.markdown("""<div class="message-card chat-assistant">
