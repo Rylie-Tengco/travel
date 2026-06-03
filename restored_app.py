@@ -7,26 +7,13 @@ import json
 import re
 import os
 import tempfile
-from datetime import date, datetime, timedelta
+from datetime import date
 from pathlib import Path
 from urllib.parse import quote_plus
 from groq import Groq
 
-try:
-    from google.auth.exceptions import RefreshError
-    from google.auth.transport.requests import Request as GoogleAuthRequest
-    from google.oauth2.credentials import Credentials as GoogleCredentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build as build_google_service
-except Exception:
-    RefreshError = None
-    GoogleAuthRequest = None
-    GoogleCredentials = None
-    InstalledAppFlow = None
-    build_google_service = None
-
 st.set_page_config(
-    page_title="I-Travel · AI Travel Planner",
+    page_title="WanderMind · AI Travel Planner",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -728,8 +715,6 @@ def load_api_key(secret_keys, env_keys):
 
 
 PERSISTED_STATE_FILE = Path(__file__).with_name("travel_local_state.json")
-GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
-GOOGLE_CALENDAR_TOKEN_FILE = Path(__file__).with_name("google_calendar_token.json")
 PERSISTED_STATE_VERSION = 2
 PERSISTED_STATE_DEFAULTS = {
     "state_version": PERSISTED_STATE_VERSION,
@@ -741,9 +726,6 @@ PERSISTED_STATE_DEFAULTS = {
     "budget_currency": "PHP",
     "budget_amount": 1500.0,
     "trip_date_text": "",
-    "departure_time_text": "",
-    "transport_preference": "No preference yet",
-    "travel_companions": "Not specified yet",
     "theme_mode": "dark",
 }
 
@@ -770,9 +752,6 @@ def save_persisted_state():
         "budget_currency": st.session_state.get("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]),
         "budget_amount": float(st.session_state.get("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"])),
         "trip_date_text": st.session_state.get("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]),
-        "departure_time_text": st.session_state.get("departure_time_text", PERSISTED_STATE_DEFAULTS["departure_time_text"]),
-        "transport_preference": st.session_state.get("transport_preference", PERSISTED_STATE_DEFAULTS["transport_preference"]),
-        "travel_companions": st.session_state.get("travel_companions", PERSISTED_STATE_DEFAULTS["travel_companions"]),
         "theme_mode": st.session_state.get("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]),
     }
 
@@ -799,20 +778,6 @@ def reset_persisted_state():
 
 def request_reset_persisted_state():
     st.session_state.reset_device_data_requested = True
-
-
-class MissingTripStartDate(RuntimeError):
-    pass
-
-
-def google_calendar_credentials_path():
-    configured_path = load_api_key(
-        ["google_calendar_credentials_path", "GOOGLE_CALENDAR_CREDENTIALS_PATH"],
-        ["GOOGLE_CALENDAR_CREDENTIALS_PATH"],
-    )
-    if configured_path:
-        return Path(configured_path).expanduser()
-    return Path(__file__).with_name("google_calendar_credentials.json")
 
 
 COUNTRY_PLACEHOLDER = "Select a country"
@@ -902,7 +867,7 @@ COUNTRY_OPTIONS = [
 
 persisted_state = load_persisted_state()
 persisted_state_version = int(persisted_state.get("state_version", 0)) if isinstance(persisted_state.get("state_version", 0), int) else 0
-for key, default in [("messages", PERSISTED_STATE_DEFAULTS["messages"]), ("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]), ("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]), ("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]), ("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]), ("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]), ("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]), ("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]), ("departure_time_text", PERSISTED_STATE_DEFAULTS["departure_time_text"]), ("transport_preference", PERSISTED_STATE_DEFAULTS["transport_preference"]), ("travel_companions", PERSISTED_STATE_DEFAULTS["travel_companions"]), ("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]), ("api_key_set", False), ("weather_api_key_set", False), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", ""), ("calendar_save_pending", False)]:
+for key, default in [("messages", PERSISTED_STATE_DEFAULTS["messages"]), ("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]), ("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]), ("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]), ("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]), ("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]), ("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]), ("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]), ("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]), ("api_key_set", False), ("weather_api_key_set", False), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", "")]:
     if key not in st.session_state:
         st.session_state[key] = persisted_state.get(key, default)
 
@@ -918,10 +883,6 @@ if st.session_state.get("budget_scope") not in ["Total trip budget", "Budget per
     st.session_state.budget_scope = PERSISTED_STATE_DEFAULTS["budget_scope"]
 if st.session_state.get("budget_currency") not in ["USD", "EUR", "GBP", "PHP", "JPY", "AUD", "CAD", "SGD"]:
     st.session_state.budget_currency = PERSISTED_STATE_DEFAULTS["budget_currency"]
-if st.session_state.get("transport_preference") not in ["No preference yet", "Budget-friendly", "Convenience-oriented", "Public transport", "Taxi / ride-hailing", "Private car", "Mixed options"]:
-    st.session_state.transport_preference = PERSISTED_STATE_DEFAULTS["transport_preference"]
-if st.session_state.get("travel_companions") not in ["Not specified yet", "Solo", "Couple", "Family", "Friends", "Group"]:
-    st.session_state.travel_companions = PERSISTED_STATE_DEFAULTS["travel_companions"]
 try:
     st.session_state.budget_amount = float(st.session_state.get("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]))
 except Exception:
@@ -1022,12 +983,11 @@ def get_weather(city, api_key):
         pass
     return None
 
-SYSTEM_PROMPT = """You are I-Travel, a friendly AI Travel Planner. Be conversational and natural.
+SYSTEM_PROMPT = """You are WanderMind, a friendly AI Travel Planner. Be conversational and natural.
 
 IMPORTANT RULES:
 - If the user says hello, hi, or just greets you — greet them back warmly and ask where they want to go. Keep it SHORT (2-3 lines max).
 - Only create itineraries or long travel plans when the user EXPLICITLY asks for one (e.g. "plan a trip", "make an itinerary", "plan my travel").
-- When the user confirms they want to go to a specific place you recommended, do not create a day-by-day itinerary yet. First give a specific numbered travel plan focused on how to get there from Imus, Cavite, Philippines, including airport, terminal, station, transport line, transfer, and landmark details when relevant, then ask for the specific details needed before making an itinerary.
 - If the user asks for a trip plan or schedule and you do not know when they want to travel yet, ask: "When would you like to take the trip?" before creating the schedule.
 - Always keep recommendations inside the selected country. Never suggest destinations outside the selected country.
 - If the selected country conflicts with the user's request, adapt the plan to places within the chosen country instead of going global.
@@ -1035,346 +995,13 @@ IMPORTANT RULES:
 - Match the length of your response to what was asked. Short question = short answer.
 - Use emojis naturally but don't overdo it.
 - When you do create itineraries, organize by day with morning/afternoon/evening activities.
-- When a user confirms a specific recommended place, prioritize numbered directions and travel logistics first. Ask for missing specifics before making an itinerary.
 - When scheduling a trip, include the start date or travel window in the plan and make the schedule line up with it.
 - Always tailor to the user's travel style, budget, and number of days set in their preferences.
 - If the budget includes a numeric amount, treat it as a real spending limit. Use it to filter recommendations, estimate costs, and note whether the amount is a total trip budget or a per-day budget."""
 
-USER_HOME_BASE = "Imus, Cavite, Philippines"
-
 def wants_trip_schedule(user_message):
     lowered = user_message.lower()
     return any(keyword in lowered for keyword in ["plan", "schedule", "itinerary", "trip", "travel", "vacation"])
-
-
-def clean_destination_name(text):
-    cleaned = re.sub(r"\s+", " ", text or "").strip(" .,!?:;\"'")
-    cleaned = re.sub(r"\b(?:please|pls|for me|thanks|thank you)\b", "", cleaned, flags=re.IGNORECASE)
-    return re.sub(r"\s+", " ", cleaned).strip(" .,!?:;\"'")
-
-
-def looks_like_preference_answer(text):
-    lowered = re.sub(r"[^a-z\s]", " ", (text or "").lower())
-    lowered = re.sub(r"\s+", " ", lowered).strip()
-    preference_terms = {
-        "food", "cuisine", "japanese food", "local food", "hotel", "hostel",
-        "guesthouse", "accommodation", "budget", "mid range", "high end",
-        "cheap", "affordable", "solo", "family", "friends", "companions",
-        "morning", "noon", "afternoon", "evening", "night",
-    }
-    preference_phrases = [
-        "i want to try",
-        "want to try",
-        "i prefer",
-        "i like",
-        "open to",
-        "around noon",
-        "around morning",
-        "around afternoon",
-        "around evening",
-    ]
-    return any(term in lowered for term in preference_terms) or any(phrase in lowered for phrase in preference_phrases)
-
-
-def extract_explicit_confirmed_destination(user_message):
-    if looks_like_preference_answer(user_message):
-        return ""
-
-    patterns = [
-        r"\b(?:i\s+want\s+to\s+go\s+to|i(?:'| a)?m\s+going\s+to|ill\s+go\s+to|i'll\s+go\s+to|let'?s\s+go\s+to|go\s+to|visit|choose|pick)\s+([A-Za-z][A-Za-z\s\-']{1,50})",
-        r"\b(?:yes|okay|ok|sure),?\s+(?:i\s+(?:choose|pick|want\s+to\s+go\s+to)|let'?s\s+go\s+to|go\s+to|visit)\s+([A-Za-z][A-Za-z\s\-']{1,50})",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, user_message, flags=re.IGNORECASE)
-        if match:
-            destination = clean_destination_name(match.group(1))
-            if destination and destination.lower() not in {"there", "that place", "it", "that"}:
-                return destination
-    return ""
-
-
-def is_affirmative_destination_confirmation(user_message):
-    if looks_like_preference_answer(user_message):
-        return False
-
-    lowered = re.sub(r"[^a-z\s']", " ", user_message.lower())
-    lowered = re.sub(r"\s+", " ", lowered).strip()
-    direct_phrases = {
-        "yes",
-        "yeah",
-        "yep",
-        "sure",
-        "ok",
-        "okay",
-        "yes please",
-        "sure please",
-        "go ahead",
-        "let's go",
-        "lets go",
-        "i want to go there",
-        "i'll go there",
-        "ill go there",
-        "i'm going there",
-        "im going there",
-        "that one",
-        "that place",
-    }
-    if lowered in direct_phrases:
-        return True
-    return any(phrase in lowered for phrase in ["go there", "visit there", "choose that", "pick that"])
-
-
-def find_latest_recommended_destination():
-    for msg in reversed(st.session_state.get("messages", [])):
-        if msg.get("role") != "assistant":
-            continue
-        images = msg.get("images") or []
-        if len(images) == 1:
-            image = images[0]
-            caption = image.get("caption") if isinstance(image, dict) else ""
-            if caption:
-                return caption
-
-        candidates = extract_place_candidates(msg.get("content", ""))
-        if candidates:
-            return candidates[0]
-    return ""
-
-
-def get_confirmed_destination(user_message):
-    explicit_destination = extract_explicit_confirmed_destination(user_message)
-    if explicit_destination:
-        return explicit_destination
-    if is_affirmative_destination_confirmation(user_message):
-        return find_latest_recommended_destination()
-    return ""
-
-
-def wants_calendar_save(user_message):
-    lowered = user_message.lower()
-    calendar_terms = ["calendar", "google calendar", "gcal", "schedule it", "save it"]
-    action_terms = ["mark", "put", "add", "save", "schedule", "book"]
-    direct_phrases = [
-        "mark that in the calendar",
-        "mark it in the calendar",
-        "put that in google calendar",
-        "put it in google calendar",
-        "add that to my calendar",
-        "add it to my calendar",
-        "save that to my calendar",
-        "save it to my calendar",
-    ]
-    return any(phrase in lowered for phrase in direct_phrases) or (
-        any(term in lowered for term in calendar_terms)
-        and any(term in lowered for term in action_terms)
-    )
-
-
-def is_itinerary_text(text):
-    lowered = text.lower()
-    day_markers = re.findall(r"\bday\s+\d+\b", lowered)
-    date_markers = re.findall(
-        r"\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}\b",
-        lowered,
-    )
-    time_blocks = ["morning", "afternoon", "evening"]
-    time_block_count = sum(1 for block in time_blocks if block in lowered)
-    has_day_by_day_structure = len(set(day_markers)) >= 2 or (
-        "day 1" in lowered and time_block_count >= 2
-    )
-    has_dated_schedule = len(set(date_markers)) >= 2 and time_block_count >= 2
-    has_itinerary_label = "itinerary" in lowered or "day-by-day" in lowered
-    return (has_day_by_day_structure or has_dated_schedule) and (
-        has_itinerary_label or time_block_count >= 2
-    )
-
-
-def find_latest_itinerary_message():
-    for msg in reversed(st.session_state.get("messages", [])):
-        if msg.get("role") == "assistant" and is_itinerary_text(msg.get("content", "")):
-            return msg.get("content", "")
-    return ""
-
-
-def parse_trip_start_date(*texts):
-    month_lookup = {
-        "jan": 1,
-        "january": 1,
-        "feb": 2,
-        "february": 2,
-        "mar": 3,
-        "march": 3,
-        "apr": 4,
-        "april": 4,
-        "may": 5,
-        "jun": 6,
-        "june": 6,
-        "jul": 7,
-        "july": 7,
-        "aug": 8,
-        "august": 8,
-        "sep": 9,
-        "sept": 9,
-        "september": 9,
-        "oct": 10,
-        "october": 10,
-        "nov": 11,
-        "november": 11,
-        "dec": 12,
-        "december": 12,
-    }
-
-    for text in texts:
-        if not text:
-            continue
-        text = str(text)
-        match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text)
-        if match:
-            try:
-                return datetime.strptime(match.group(1), "%Y-%m-%d").date()
-            except ValueError:
-                pass
-
-        month_day_match = re.search(
-            r"\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:,\s*(\d{4}))?\b",
-            text,
-            re.IGNORECASE,
-        )
-        if month_day_match:
-            month_name, day_text, year_text = month_day_match.groups()
-            year = int(year_text) if year_text else date.today().year
-            try:
-                parsed = date(year, month_lookup[month_name.lower()], int(day_text))
-                if not year_text and parsed < date.today():
-                    parsed = date(year + 1, parsed.month, parsed.day)
-                return parsed
-            except ValueError:
-                pass
-    return None
-
-
-def missing_calendar_date_message():
-    return "Sure - what date should I start it on? Send an exact date like 2026-06-10, and I will add it to Google Calendar."
-
-
-def answer_pending_calendar_date(user_message, trip_country, trip_style, trip_days, budget):
-    if not st.session_state.get("calendar_save_pending"):
-        return None
-
-    start_date = parse_trip_start_date(user_message)
-    if not start_date:
-        return "I still need the exact start date for the calendar event. Please send it like 2026-06-10."
-
-    st.session_state.calendar_save_pending = False
-    return save_latest_itinerary_to_calendar(
-        trip_country,
-        trip_style,
-        trip_days,
-        budget,
-        start_date.isoformat(),
-        remember_missing_date=True,
-    )
-
-
-def assistant_message(reply):
-    if isinstance(reply, dict):
-        return {"role": "assistant", **reply}
-    return {"role": "assistant", "content": str(reply)}
-
-
-def calendar_saved_message(link=""):
-    message = {"content": "Done - I added the trip to Google Calendar."}
-    if link:
-        message["calendar_link"] = link
-    return message
-
-
-def get_google_calendar_service():
-    if not all([GoogleAuthRequest, GoogleCredentials, InstalledAppFlow, build_google_service]):
-        raise RuntimeError("Google Calendar libraries are not installed. Run `pip install -r requirements.txt` and restart the app.")
-
-    credentials_path = google_calendar_credentials_path()
-    if not credentials_path.exists():
-        raise RuntimeError(f"Google Calendar credentials were not found at {credentials_path}.")
-
-    def run_oauth_flow():
-        flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), GOOGLE_CALENDAR_SCOPES)
-        fresh_creds = flow.run_local_server(port=0)
-        GOOGLE_CALENDAR_TOKEN_FILE.write_text(fresh_creds.to_json(), encoding="utf-8")
-        return fresh_creds
-
-    creds = None
-    if GOOGLE_CALENDAR_TOKEN_FILE.exists():
-        try:
-            creds = GoogleCredentials.from_authorized_user_file(str(GOOGLE_CALENDAR_TOKEN_FILE), GOOGLE_CALENDAR_SCOPES)
-        except Exception:
-            GOOGLE_CALENDAR_TOKEN_FILE.unlink(missing_ok=True)
-            creds = None
-
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            try:
-                creds.refresh(GoogleAuthRequest())
-                GOOGLE_CALENDAR_TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
-            except Exception as exc:
-                is_revoked_token = (RefreshError and isinstance(exc, RefreshError)) or "invalid_grant" in str(exc).lower()
-                if is_revoked_token:
-                    GOOGLE_CALENDAR_TOKEN_FILE.unlink(missing_ok=True)
-                    creds = run_oauth_flow()
-                else:
-                    raise
-        else:
-            creds = run_oauth_flow()
-
-    return build_google_service("calendar", "v3", credentials=creds)
-
-
-def build_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text):
-    start_date = parse_trip_start_date(trip_date_text, itinerary_text)
-    if not start_date:
-        raise MissingTripStartDate(missing_calendar_date_message())
-
-    end_date = start_date + timedelta(days=int(trip_days))
-    summary = f"{int(trip_days)}-day {trip_country} trip"
-    description = "\n\n".join([
-        "AI-generated travel itinerary from I-Travel.",
-        f"Travel style: {trip_style}",
-        f"Budget: {budget}",
-        f"Trip length: {int(trip_days)} days",
-        "Itinerary:",
-        itinerary_text,
-    ])
-    return {
-        "summary": summary,
-        "location": trip_country,
-        "description": description,
-        "start": {"date": start_date.isoformat()},
-        "end": {"date": end_date.isoformat()},
-    }
-
-
-def create_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text):
-    service = get_google_calendar_service()
-    event = build_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text)
-    created = service.events().insert(calendarId="primary", body=event).execute()
-    return created.get("htmlLink", "")
-
-
-def save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, trip_date_text, remember_missing_date=False):
-    itinerary_text = find_latest_itinerary_message()
-    if not itinerary_text:
-        return "I could not find a recent itinerary to add yet. Ask me to create a trip plan first, then I can mark it in Google Calendar."
-
-    try:
-        link = create_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text)
-    except MissingTripStartDate:
-        if remember_missing_date:
-            st.session_state.calendar_save_pending = True
-        return missing_calendar_date_message()
-    except Exception as exc:
-        return f"I could not add it to Google Calendar yet: {exc}"
-
-    return calendar_saved_message(link)
 
 
 def is_recommendation_response(user_text, assistant_text):
@@ -1583,30 +1210,10 @@ def build_response_images_cached(user_message, assistant_message, limit=3):
     return tuple((item["url"], item["caption"]) for item in build_response_images(user_message, assistant_message, limit))
 
 
-def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text, current_date_text, confirmed_destination="", departure_time_text="", transport_preference="", travel_companions=""):
+def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text, current_date_text):
     client = Groq(api_key=st.session_state.groq_key)
     schedule_context = trip_date_text if trip_date_text else "Not provided yet"
-    departure_context = departure_time_text if departure_time_text else "Not provided yet"
-    transport_context = transport_preference if transport_preference and transport_preference != "No preference yet" else "Not provided yet"
-    companions_context = travel_companions if travel_companions and travel_companions != "Not specified yet" else "Not provided yet"
-    system = SYSTEM_PROMPT + f"\n\nCurrent date for planning: {current_date_text}\nUser's current trip preferences: Country={trip_country}, Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}, Departure time={departure_context}, Transport preference={transport_context}, Travel companions={companions_context}"
-    if confirmed_destination:
-        system += f"""
-
-Confirmed destination flow:
-- The user has confirmed they want to go to {confirmed_destination}. Treat this as a request for a travel plan on how to get there, not as an itinerary request.
-- Use {USER_HOME_BASE} as the user's starting point/current location.
-- Do not create a day-by-day itinerary yet.
-- Put the response in this order:
-  1. Numbered Travel Plan: give detailed step-by-step directions from {USER_HOME_BASE} to {confirmed_destination}. Each step must be a specific action the user can follow, including transport mode, pickup/drop-off area, departure airport, likely airport terminal/check-in area when relevant, arrival airport, arrival terminal/transport area when relevant, train/bus line names, station or stop names, transfers, destination landmark/entrance, and estimated travel time when reasonable.
-  2. Route options: include practical route choices labeled Option A, Option B, etc. when available, and explain which user each option fits best.
-  3. Preparation notes: what to check before leaving, including schedules, fares, traffic, weather, operating hours, parking, and booking/reservation needs.
-  4. Specifics needed before itinerary: ask only for missing details from the saved preferences, such as departure date/time, preferred transport mode, trip length, budget comfort, or whether they are traveling solo or with companions.
-- For international trips from the Philippines, include the airport flow: Imus to NAIA, check the airline ticket for the exact NAIA terminal, board the Manila-to-destination-country flight, then after landing identify the airport rail/bus/taxi area and the next station/terminal to use.
-- Keep the travel plan concrete and easy to follow. Avoid vague advice like "fly to Japan", "take public transportation", or "take a train" without naming likely airports, terminals/check-in areas, rail/bus lines, station names, and transfer points.
-- If the exact terminal depends on the airline or arrival airport, say that clearly and tell the user what to verify on the ticket or airport signs.
-- End by asking only for the specifics that are still marked "Not provided yet" or "Not specified yet" in the saved preferences.
-- If exact transport schedules, fares, or traffic conditions are uncertain, say they should be checked before departure."""
+    system = SYSTEM_PROMPT + f"\n\nCurrent date for planning: {current_date_text}\nUser's current trip preferences: Country={trip_country}, Style={trip_style}, Days={trip_days}, Budget={budget}, Trip timing={schedule_context}"
     messages = [{"role": "system", "content": system}]
     for m in st.session_state.messages:
         messages.append({"role": m["role"], "content": m["content"]})
@@ -1678,7 +1285,7 @@ left, right = st.columns([1, 2.5], gap="large")
 with left:
     st.markdown("""
     <div class="hero-card">
-        <div class="hero-title">I-Travel</div>
+        <div class="hero-title">WanderMind</div>
         <div class="hero-sub">✈️ AI Travel Planner Agent</div>
         <div class="hero-copy">Shape a trip with a custom budget, live weather, and recommendation cards that adapt to your pace and style.</div>
     </div>
@@ -1711,7 +1318,7 @@ with left:
 
     st.markdown('<div class="section-label">🗺️ Trip Preferences</div>', unsafe_allow_html=True)
     st.caption("Your preferences and chat history are saved locally on this device and restored after refresh.")
-    trip_country = st.selectbox("Country", COUNTRY_OPTIONS, key="trip_country", help="Choose one country so I-Travel keeps the trip focused there.")
+    trip_country = st.selectbox("Country", COUNTRY_OPTIONS, key="trip_country", help="Choose one country so WanderMind keeps the trip focused there.")
     trip_style = st.selectbox("Travel Style", ["Adventure", "Relaxation", "Cultural", "Foodie", "Family", "Romantic"], key="trip_style")
     trip_days = st.number_input("Number of Days", min_value=1, max_value=30, value=5, key="trip_days")
     budget_scope = st.selectbox("Budget Scope", ["Total trip budget", "Budget per day"], key="budget_scope")
@@ -1727,35 +1334,14 @@ with left:
         key="trip_date_text",
         label_visibility="collapsed",
     )
-    departure_time_text = st.text_input(
-        "Preferred departure or arrival time",
-        placeholder="e.g. leave at 8 AM, arrive around noon",
-        key="departure_time_text",
-    )
-    transport_preference = st.selectbox(
-        "Transport Preference",
-        ["No preference yet", "Budget-friendly", "Convenience-oriented", "Public transport", "Taxi / ride-hailing", "Private car", "Mixed options"],
-        key="transport_preference",
-    )
-    travel_companions = st.selectbox(
-        "Travel Companions",
-        ["Not specified yet", "Solo", "Couple", "Family", "Friends", "Group"],
-        key="travel_companions",
-    )
 
     st.markdown('<div class="section-label">⚡ Quick Snapshot</div>', unsafe_allow_html=True)
-    snapshot_departure = html.escape(departure_time_text or "Not set")
-    snapshot_transport = html.escape(transport_preference)
-    snapshot_companions = html.escape(travel_companions)
     st.markdown(f"""
     <div class="quick-snapshot-grid">
         <div class="quick-stat"><div class="quick-stat-label">Country</div><div class="quick-stat-value">{trip_country}</div></div>
         <div class="quick-stat"><div class="quick-stat-label">Style</div><div class="quick-stat-value">{trip_style}</div></div>
         <div class="quick-stat"><div class="quick-stat-label">Days</div><div class="quick-stat-value">{int(trip_days)}</div></div>
         <div class="quick-stat"><div class="quick-stat-label">Budget</div><div class="quick-stat-value">{budget_currency} {budget_amount:,.0f}</div></div>
-        <div class="quick-stat"><div class="quick-stat-label">Time</div><div class="quick-stat-value">{snapshot_departure}</div></div>
-        <div class="quick-stat"><div class="quick-stat-label">Transport</div><div class="quick-stat-value">{snapshot_transport}</div></div>
-        <div class="quick-stat"><div class="quick-stat-label">Companions</div><div class="quick-stat-value">{snapshot_companions}</div></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1791,22 +1377,15 @@ with left:
                         # Auto-send immediately (push-to-talk behavior)
                         st.session_state.voice_preview_ready = False
                         st.session_state.messages.append({"role": "user", "content": transcript})
-                        confirmed_destination = get_confirmed_destination(transcript)
-                        pending_calendar_reply = answer_pending_calendar_date(transcript, trip_country, trip_style, trip_days, budget)
-                        if pending_calendar_reply:
-                            st.session_state.messages.append(assistant_message(pending_calendar_reply))
-                        elif wants_calendar_save(transcript):
-                            calendar_reply = save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, remember_missing_date=True)
-                            st.session_state.messages.append(assistant_message(calendar_reply))
-                        elif wants_trip_schedule(transcript) and not confirmed_destination and not st.session_state.trip_date_text.strip():
+                        if wants_trip_schedule(transcript) and not st.session_state.trip_date_text.strip():
                             st.session_state.messages.append({
                                 "role": "assistant",
                                 "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
                             })
                         else:
-                            with st.spinner("I-Travel is thinking... 🌍"):
+                            with st.spinner("WanderMind is thinking... 🌍"):
                                 try:
-                                    reply = chat_with_agent(transcript, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text, confirmed_destination, st.session_state.departure_time_text, st.session_state.transport_preference, st.session_state.travel_companions)
+                                    reply = chat_with_agent(transcript, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                                     assistant_message = {"role": "assistant", "content": reply}
                                     images = build_response_images(transcript, reply)
                                     if images:
@@ -1840,14 +1419,7 @@ with left:
                 if transcript_text:
                     st.session_state.voice_preview_ready = False
                     st.session_state.messages.append({"role": "user", "content": transcript_text})
-                    confirmed_destination = get_confirmed_destination(transcript_text)
-                    pending_calendar_reply = answer_pending_calendar_date(transcript_text, trip_country, trip_style, trip_days, budget)
-                    if pending_calendar_reply:
-                        st.session_state.messages.append(assistant_message(pending_calendar_reply))
-                    elif wants_calendar_save(transcript_text):
-                        calendar_reply = save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, remember_missing_date=True)
-                        st.session_state.messages.append(assistant_message(calendar_reply))
-                    elif wants_trip_schedule(transcript_text) and not confirmed_destination and not st.session_state.trip_date_text.strip():
+                    if wants_trip_schedule(transcript_text) and not st.session_state.trip_date_text.strip():
                         st.session_state.messages.append({
                             "role": "assistant",
                             "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
@@ -1856,9 +1428,9 @@ with left:
                         if trip_country == COUNTRY_PLACEHOLDER:
                             st.warning("Choose a country before sending a transcript.")
                         else:
-                            with st.spinner("I-Travel is thinking... 🌍"):
+                            with st.spinner("WanderMind is thinking... 🌍"):
                                 try:
-                                    reply = chat_with_agent(transcript_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text, confirmed_destination, st.session_state.departure_time_text, st.session_state.transport_preference, st.session_state.travel_companions)
+                                    reply = chat_with_agent(transcript_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                                     assistant_message = {"role": "assistant", "content": reply}
                                     images = build_response_images(transcript_text, reply)
                                     if images:
@@ -1908,7 +1480,6 @@ with left:
 
     if st.button("🗑️ Clear Chat", use_container_width=True):
         st.session_state.messages = []
-        st.session_state.calendar_save_pending = False
         save_and_rerun()
 
     st.button("Reset Saved Device Data", use_container_width=True, on_click=request_reset_persisted_state)
@@ -2016,9 +1587,9 @@ with right:
         with st.container(key="chat_feed"):
             if not st.session_state.messages:
                 st.markdown("""<div class="message-card chat-assistant">
-                    <div class="chat-label assistant-label">🌍 I-Travel</div>
+                    <div class="chat-label assistant-label">🌍 WanderMind</div>
                     <b>Hello, fellow explorer! ✈️</b><br><br>
-                    I'm I-Travel, your personal AI travel planner. I can help you:<br>
+                    I'm WanderMind, your personal AI travel planner. I can help you:<br>
                     🗺️ &nbsp;Plan detailed day-by-day itineraries<br>
                     🏨 &nbsp;Find hotels & restaurants for your budget<br>
                     🌤️ &nbsp;Check weather at your destination<br>
@@ -2027,13 +1598,13 @@ with right:
                     <b>Which country and when would you like to take the trip? 🌏</b>
                 </div>""", unsafe_allow_html=True)
 
-            for msg_idx, msg in enumerate(st.session_state.messages):
+            for msg in st.session_state.messages:
                 if msg["role"] == "user":
                     safe_content = html.escape(msg["content"]).replace("\n", "<br>")
                     st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div>{safe_content}</div>""", unsafe_allow_html=True)
                 else:
                     content = html.escape(msg["content"]).replace("\n", "<br>")
-                    st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 I-Travel</div>{content}</div>""", unsafe_allow_html=True)
+                    st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 WanderMind</div>{content}</div>""", unsafe_allow_html=True)
                     if msg.get("images"):
                         image_cols = st.columns(min(len(msg["images"]), 3))
                         for idx, image_data in enumerate(msg["images"]):
@@ -2042,21 +1613,6 @@ with right:
                                     st.image(image_data, use_container_width=True)
                                 else:
                                     st.image(image_data["url"], caption=image_data.get("caption"), use_container_width=True)
-                    if msg.get("calendar_link"):
-                        st.link_button("Open in Google Calendar", msg["calendar_link"])
-                    if is_itinerary_text(msg.get("content", "")):
-                        if st.button("Add to Google Calendar", key=f"calendar_add_{msg_idx}"):
-                            with st.spinner("Adding this trip to Google Calendar..."):
-                                try:
-                                    link = create_trip_calendar_event(msg.get("content", ""), trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
-                                    calendar_reply = calendar_saved_message(link)
-                                except MissingTripStartDate:
-                                    st.session_state.calendar_save_pending = True
-                                    calendar_reply = missing_calendar_date_message()
-                                except Exception as exc:
-                                    calendar_reply = f"I could not add it to Google Calendar yet: {exc}"
-                            st.session_state.messages.append(assistant_message(calendar_reply))
-                            save_and_rerun()
             st.markdown('<div id="chat-bottom-anchor"></div>', unsafe_allow_html=True)
 
         # ── KEY FIX: use st.chat_input — only fires when user presses Enter/Send ──
@@ -2064,22 +1620,11 @@ with right:
         user_input = st.chat_input(chat_placeholder)
 
         if user_input:
-            confirmed_destination = get_confirmed_destination(user_input)
             if trip_country == COUNTRY_PLACEHOLDER:
                 st.warning("Choose a country first so I can keep the trip focused there.")
-            elif st.session_state.get("calendar_save_pending"):
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                pending_calendar_reply = answer_pending_calendar_date(user_input, trip_country, trip_style, trip_days, budget)
-                st.session_state.messages.append(assistant_message(pending_calendar_reply))
-                save_and_rerun()
-            elif wants_calendar_save(user_input):
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                calendar_reply = save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, remember_missing_date=True)
-                st.session_state.messages.append(assistant_message(calendar_reply))
-                save_and_rerun()
             elif not st.session_state.api_key_set:
                 st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
-            elif wants_trip_schedule(user_input) and not confirmed_destination and not st.session_state.trip_date_text.strip():
+            elif wants_trip_schedule(user_input) and not st.session_state.trip_date_text.strip():
                 st.session_state.messages.append({"role": "user", "content": user_input})
                 st.session_state.messages.append({
                     "role": "assistant",
@@ -2088,9 +1633,9 @@ with right:
                 save_and_rerun()
             else:
                 st.session_state.messages.append({"role": "user", "content": user_input})
-                with st.spinner("I-Travel is thinking... 🌍"):
+                with st.spinner("WanderMind is thinking... 🌍"):
                     try:
-                        reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text, confirmed_destination, st.session_state.departure_time_text, st.session_state.transport_preference, st.session_state.travel_companions)
+                        reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text)
                         assistant_message = {"role": "assistant", "content": reply}
                         images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
                         if images:

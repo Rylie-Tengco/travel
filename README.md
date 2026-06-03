@@ -1,150 +1,211 @@
-# ✈️ WanderMind — AI Travel Planner Agent
+# I-Travel: AI Travel Planner Agent
 
-> An intelligent AI-powered travel planning agent built with Python, Groq, Streamlit, and the OpenWeatherMap API.
+I-Travel is a Streamlit-based AI travel planning assistant that helps users turn trip preferences into practical travel advice, directions, day-by-day itineraries, weather checks, and Google Calendar events.
 
----
+The app uses Groq for chat reasoning and voice transcription, OpenWeatherMap for current weather, local JSON persistence for saved preferences and chat history, and optional Google Calendar OAuth for saving generated itineraries.
 
-## 📌 Project Overview
+## Project Overview
 
-WanderMind is an agentic AI system that helps users plan personalized travel itineraries through a conversational chat interface. It demonstrates key agentic behaviors including multi-step reasoning, tool usage (weather API), short-term memory (conversation context), goal-oriented task completion, and local persistence for trip preferences plus chat history.
+I-Travel is designed as an agentic travel planner rather than a generic chatbot. The user sets trip context in the control panel, then chats naturally with the assistant. The system uses that saved context on every response so recommendations stay aligned with the selected country, travel style, number of days, budget, timing, transport preference, and travel companions.
 
-**Built for:** ANLYTC4 Final Project  
-**Course:** Analytics 4  
+Key workflows include:
 
----
+- Answering travel questions through a chat interface
+- Asking for trip timing before creating a schedule
+- Creating day-by-day itineraries with morning, afternoon, and evening blocks
+- Giving concrete travel logistics when the user confirms a destination
+- Checking live weather for a city
+- Transcribing recorded voice requests with Groq Whisper
+- Saving recognized itineraries to Google Calendar
+- Restoring preferences and chat history after refresh
+- Showing destination images for recommendation-style responses
 
-## 🧠 System Architecture
+Built for ANLYTC4 / Analytics 4.
 
+## System Architecture
+
+```text
+User
+  |
+  v
+Streamlit Interface
+  |-- Trip preferences
+  |-- Trip timing and departure details
+  |-- Voice input
+  |-- Weather lookup
+  |-- Chat input
+  |
+  v
+Session State + travel_local_state.json
+  |-- Messages
+  |-- Country, style, days, budget
+  |-- Trip timing and transport preference
+  |-- Travel companions
+  |-- Theme mode
+  |
+  v
+Agent Controller
+  |-- Prompt assembly
+  |-- Calendar intent detection
+  |-- Missing-date clarification
+  |-- Destination confirmation handling
+  |-- Itinerary detection
+  |-- Destination image lookup
+  |
+  v
+External Services
+  |-- Groq chat model
+  |-- Groq Whisper transcription
+  |-- OpenWeatherMap API
+  |-- Google Calendar API
+  |-- Wikimedia/Wikipedia image lookup
+  |
+  v
+Rendered Output
+  |-- Chat responses
+  |-- Itineraries
+  |-- Weather cards
+  |-- Destination images
+  |-- Calendar links
 ```
-User Input (Streamlit Chat)
-        ↓
-Preference Context (travel style, days, budget)
-        ↓
-Groq LLM (Reasoning Engine)
-        ↓
-    ┌───────────────────────┐
-    │  Tool: OpenWeatherMap │  ← External API
-    └───────────────────────┘
-        ↓
-Itinerary / Recommendations (Response)
-        ↓
-Chat UI with Memory (Streamlit Session State)
-```
 
-### Agentic Features
-| Feature | Implementation |
+## Main Features
+
+| Feature | Current implementation |
 |---|---|
-| **Multi-step reasoning** | Groq plans day-by-day itineraries with morning/afternoon/evening breakdown |
-| **Tool usage** | OpenWeatherMap API for live weather at destination |
-| **Short-term memory** | Full conversation history passed on every API call |
-| **Local persistence** | Trip preferences and chat history are saved on the device and restored after refresh |
-| **Goal-oriented behavior** | Agent asks follow-up questions to refine recommendations |
-| **Personalization** | Adapts to travel style, budget, and trip length preferences |
+| Preference-aware planning | Sidebar controls set country, style, days, budget scope, currency, timing, departure time, transport preference, and companions |
+| Country-scoped recommendations | The system prompt tells the agent to keep recommendations inside the selected country |
+| Timing guardrail | If a user asks for a trip schedule without travel timing, the app asks when they want to take the trip before generating the itinerary |
+| Destination confirmation flow | If the user confirms a recommended destination, the app asks the model for numbered travel directions from Imus, Cavite before making an itinerary |
+| Conversation memory | Chat messages are stored in Streamlit session state and saved locally |
+| Local persistence | `travel_local_state.json` stores preferences, theme, and chat history on the device |
+| Voice input | `st.audio_input` records audio and Groq `whisper-large-v3` transcribes it |
+| Push-to-talk mode | Optional auto-send submits a recording immediately after transcription |
+| Weather lookup | OpenWeatherMap current weather endpoint returns temperature, condition, humidity, and wind speed |
+| Calendar export | Google Calendar integration creates an all-day trip event from the latest itinerary |
+| Calendar follow-up | If no exact start date is available, the app asks for one and resumes calendar saving |
+| Destination images | Recommendation responses can include images found through Wikimedia/Wikipedia |
+| Theme mode | Light and dark mode are available and persisted locally |
 
----
-
-## 🛠️ Libraries Used
+## Libraries Used
 
 | Library | Purpose |
 |---|---|
-| `groq` | LLM reasoning engine |
-| `streamlit` | Chat web interface |
-| `requests` | OpenWeatherMap API calls |
+| `streamlit` | Web app interface, chat UI, forms, controls, audio input, and state |
+| `groq` | LLM chat completions and Whisper transcription |
+| `requests` | OpenWeatherMap and Wikimedia/Wikipedia HTTP requests |
+| `google-api-python-client` | Google Calendar event creation |
+| `google-auth-httplib2` | Google API authentication transport |
+| `google-auth-oauthlib` | Google OAuth desktop flow |
+| `pypdf` | Listed dependency, not used by the current `app.py` |
+| `python-docx` | Listed dependency, not used by the current `app.py` |
 
----
+## Setup Instructions
 
-## ⚙️ Setup Instructions
+### 1. Install dependencies
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/YOUR_USERNAME/ai-travel-planner.git
-cd ai-travel-planner
-```
-
-### 2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Get your API keys
-- **Groq API key:** https://console.groq.com/keys
-- **OpenWeatherMap key (free):** https://openweathermap.org/api → Sign up → API Keys
-- Set them once as Streamlit secrets or environment variables so users do not need to re-enter them after refresh.
-- Trip preferences, theme choice, and chat history are saved locally in `travel_local_state.json` so the app can restore them after a refresh.
+### 2. Configure API keys
 
-Example ` .streamlit/secrets.toml `:
+Groq is required for chat and voice transcription. OpenWeatherMap is required only for the weather card. Google Calendar is optional.
+
+Create `.streamlit/secrets.toml`:
+
 ```toml
 groq_api_key = "your_groq_key"
 openweather_api_key = "your_openweather_key"
+
+# Optional if the OAuth file is not beside app.py:
+google_calendar_credentials_path = "C:/path/to/google_calendar_credentials.json"
 ```
 
-Example PowerShell environment variables:
+Or set environment variables in PowerShell:
+
 ```powershell
 $env:GROQ_API_KEY = "your_groq_key"
 $env:OPENWEATHER_API_KEY = "your_openweather_key"
+$env:GOOGLE_CALENDAR_CREDENTIALS_PATH = "C:\path\to\google_calendar_credentials.json"
 ```
 
+### 3. Optional Google Calendar setup
+
+1. Enable the Google Calendar API in Google Cloud.
+2. Create an OAuth desktop client.
+3. Download the OAuth client file as `google_calendar_credentials.json`.
+4. Place it beside `app.py`, or set `GOOGLE_CALENDAR_CREDENTIALS_PATH`.
+
+The first calendar save opens the Google OAuth flow. The generated token is stored locally as `google_calendar_token.json`.
+
+Private local files ignored by git:
+
+- `.streamlit/secrets.toml`
+- `travel_local_state.json`
+- `google_calendar_credentials.json`
+- `google_calendar_token.json`
+
 ### 4. Run the app
+
 ```bash
 streamlit run app.py
 ```
 
-### 5. Use the app
-1. Set your Groq and OpenWeatherMap keys once in secrets or environment variables
-2. Set your travel style, number of days, and budget
-3. Start chatting!
+## How To Use
 
----
+1. Choose a country and trip preferences in the left panel.
+2. Add timing such as `2026-06-10`, `next July`, or `around Christmas` if you want a schedule.
+3. Chat with I-Travel in the right panel.
+4. Use voice input if you want to record a request instead of typing.
+5. Use Quick Weather Check for current city weather.
+6. After an itinerary appears, use Add to Google Calendar to create an all-day calendar event.
 
-## 💬 Example Prompts
+## Example Prompts
 
-- *"Plan me a 5-day trip to Tokyo on a mid-range budget"*
-- *"What should I pack for a beach trip to Palawan?"*
-- *"Give me a cultural itinerary for Rome, 7 days, luxury budget"*
-- *"What are the visa requirements for Filipinos going to Japan?"*
-- *"Best street food spots in Bangkok?"*
+- `Plan a 5-day cultural trip to Tokyo starting 2026-06-10.`
+- `What should I pack for a beach trip to Palawan?`
+- `Give me a budget-friendly food itinerary in Seoul.`
+- `I want to go to Kyoto. How do I get there?`
+- `Save this itinerary to my Google Calendar.`
+- `Check the weather in Manila.`
+- `Compare Cebu and Boracay for a family trip.`
 
----
+## Project Structure
 
-## 📁 Project Structure
-
+```text
+travel/
+├── app.py                         # Main Streamlit application
+├── requirements.txt               # Python dependencies
+├── README.md                      # Project setup and usage guide
+├── PROJECT_REPORT.md              # Academic project report
+├── .streamlit/secrets.toml         # Local secrets, ignored by git
+├── travel_local_state.json         # Generated local app state, ignored by git
+├── google_calendar_credentials.json# Optional OAuth client, ignored by git
+└── google_calendar_token.json      # Generated OAuth token, ignored by git
 ```
-ai-travel-planner/
-├── app.py              # Main Streamlit application
-├── requirements.txt    # Python dependencies
-├── README.md           # This file
-└── travel_local_state.json # Generated local persistence file
-```
 
----
+## Test Cases
 
-## 🧪 Test Cases
-
-| # | Input | Expected Output |
+| # | Test | Expected behavior |
 |---|---|---|
-| 1 | "Plan a 3-day trip to Paris" | Day-by-day itinerary with activities |
-| 2 | "Budget trip to Bali for 7 days" | Budget-friendly recommendations |
-| 3 | "What to pack for Iceland in winter?" | Packing list with winter gear |
-| 4 | "Best food in Tokyo" | Restaurant and food recommendations |
-| 5 | "Visa requirements for the Philippines to Japan" | Visa information |
-| 6 | "Family-friendly activities in Singapore" | Kid-friendly recommendations |
-| 7 | "Luxury honeymoon in Maldives 5 days" | Luxury resort and experience suggestions |
-| 8 | Check weather for "Manila" | Live weather data from API |
-| 9 | "Is it safe to travel to Morocco?" | Safety tips and advice |
-| 10 | "Compare Cebu vs Boracay for a beach trip" | Comparison with pros and cons |
+| 1 | Ask `Plan a 3-day trip` with no timing | App asks when the user wants to take the trip |
+| 2 | Add timing, then ask for an itinerary | Agent creates a day-by-day plan with morning/afternoon/evening sections |
+| 3 | Change country to Philippines and ask for Tokyo | Agent should keep recommendations within the selected country or ask to change country |
+| 4 | Confirm a recommended place with `I want to go there` | Agent gives numbered travel logistics from Imus, Cavite before an itinerary |
+| 5 | Use Quick Weather Check for Manila | Weather card shows live temperature, condition, humidity, and wind |
+| 6 | Record a voice request | App transcribes the audio and shows a preview or auto-sends it |
+| 7 | Click Add to Google Calendar without a date | App asks for an exact start date |
+| 8 | Provide `2026-06-10` after the calendar prompt | App creates the calendar event if Google OAuth is configured |
+| 9 | Refresh the page | Saved preferences and chat history are restored |
+| 10 | Reset saved device data | Local persisted state is cleared and defaults are restored |
 
----
+## Responsible AI Notes
 
-## 🤖 Responsible AI Reflection
+I-Travel is a planning assistant, not an official travel authority. Users should verify visa rules, safety advisories, health requirements, prices, operating hours, transport schedules, and booking availability from official or provider sources before making final travel decisions.
 
-WanderMind is designed with the following ethical considerations:
-- **Transparency:** Users are informed they are interacting with an AI agent
-- **Accuracy:** Users are encouraged to verify visa and safety information from official sources
-- **Bias awareness:** The agent may have biases toward popular tourist destinations
-- **Data privacy:** No user data is stored beyond the current session
+The app stores preferences and chat history locally on the user's device. API keys, Google OAuth credentials, and generated tokens should remain private and should not be committed to version control.
 
----
+## License
 
-## 📄 License
-
-This project was created for academic purposes under ANLYTC4.
+Created for academic purposes under ANLYTC4.

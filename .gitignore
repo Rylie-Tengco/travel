@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 travel_local_state.json
+google_calendar_credentials.json
+google_calendar_token.json
