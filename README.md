@@ -1,8 +1,8 @@
 # I-Travel: AI Travel Planner Agent
 
-I-Travel is a Streamlit-based AI travel planning assistant that helps users turn trip preferences into practical travel advice, directions, day-by-day itineraries, weather checks, and Google Calendar events.
+I-Travel is a Streamlit-based AI travel planning assistant that helps users turn trip preferences, messages, images, and document files into practical travel advice, directions, day-by-day itineraries, weather checks, and Google Calendar events.
 
-The app uses Groq for chat reasoning and voice transcription, OpenWeatherMap for current weather, local JSON persistence for saved preferences and chat history, and optional Google Calendar OAuth for saving generated itineraries.
+The app uses Groq for chat reasoning, image-aware requests, and voice transcription, OpenWeatherMap for current weather, local JSON persistence for saved preferences and chat history, and optional Google Calendar OAuth for saving generated itineraries.
 
 ## Project Overview
 
@@ -11,6 +11,7 @@ I-Travel is designed as an agentic travel planner rather than a generic chatbot.
 Key workflows include:
 
 - Answering travel questions through a chat interface
+- Accepting image and document attachments in chat
 - Asking for trip timing before creating a schedule
 - Creating day-by-day itineraries with morning, afternoon, and evening blocks
 - Giving concrete travel logistics when the user confirms a destination
@@ -33,7 +34,7 @@ Streamlit Interface
   |-- Trip timing and departure details
   |-- Voice input
   |-- Weather lookup
-  |-- Chat input
+  |-- Chat input with file attachments
   |
   v
 Session State + travel_local_state.json
@@ -46,6 +47,7 @@ Session State + travel_local_state.json
   v
 Agent Controller
   |-- Prompt assembly
+  |-- Attachment preparation
   |-- Calendar intent detection
   |-- Missing-date clarification
   |-- Destination confirmation handling
@@ -55,6 +57,7 @@ Agent Controller
   v
 External Services
   |-- Groq chat model
+  |-- Groq vision-capable model for image requests
   |-- Groq Whisper transcription
   |-- OpenWeatherMap API
   |-- Google Calendar API
@@ -63,6 +66,7 @@ External Services
   v
 Rendered Output
   |-- Chat responses
+  |-- User image and document attachment previews
   |-- Itineraries
   |-- Weather cards
   |-- Destination images
@@ -75,6 +79,9 @@ Rendered Output
 |---|---|
 | Preference-aware planning | Sidebar controls set country, style, days, budget scope, currency, timing, departure time, transport preference, and companions |
 | Country-scoped recommendations | The system prompt tells the agent to keep recommendations inside the selected country |
+| Image and file sending | Chat input accepts images and documents so users can ask about maps, screenshots, booking details, travel notes, PDFs, DOCX files, TXT files, and Markdown files |
+| Image understanding | Uploaded JPG, JPEG, PNG, and WebP files are sent to a Groq vision-capable model when included in a chat request |
+| Document reading | Uploaded PDF, DOCX, TXT, and MD files are converted into text context for the AI response |
 | Timing guardrail | If a user asks for a trip schedule without travel timing, the app asks when they want to take the trip before generating the itinerary |
 | Destination confirmation flow | If the user confirms a recommended destination, the app asks the model for numbered travel directions from Imus, Cavite before making an itinerary |
 | Conversation memory | Chat messages are stored in Streamlit session state and saved locally |
@@ -92,13 +99,13 @@ Rendered Output
 | Library | Purpose |
 |---|---|
 | `streamlit` | Web app interface, chat UI, forms, controls, audio input, and state |
-| `groq` | LLM chat completions and Whisper transcription |
+| `groq` | LLM chat completions, vision-capable image requests, and Whisper transcription |
 | `requests` | OpenWeatherMap and Wikimedia/Wikipedia HTTP requests |
 | `google-api-python-client` | Google Calendar event creation |
 | `google-auth-httplib2` | Google API authentication transport |
 | `google-auth-oauthlib` | Google OAuth desktop flow |
-| `pypdf` | Listed dependency, not used by the current `app.py` |
-| `python-docx` | Listed dependency, not used by the current `app.py` |
+| `pypdf` | Extracts readable text from uploaded PDF files |
+| `python-docx` | Extracts readable text from uploaded DOCX files |
 
 ## Setup Instructions
 
@@ -157,9 +164,18 @@ streamlit run app.py
 1. Choose a country and trip preferences in the left panel.
 2. Add timing such as `2026-06-10`, `next July`, or `around Christmas` if you want a schedule.
 3. Chat with I-Travel in the right panel.
-4. Use voice input if you want to record a request instead of typing.
-5. Use Quick Weather Check for current city weather.
-6. After an itinerary appears, use Add to Google Calendar to create an all-day calendar event.
+4. Attach an image or file if you want the assistant to use travel screenshots, maps, booking details, notes, PDFs, DOCX files, TXT files, or Markdown files.
+5. Use voice input if you want to record a request instead of typing.
+6. Use Quick Weather Check for current city weather.
+7. After an itinerary appears, use Add to Google Calendar to create an all-day calendar event.
+
+Attachment limits:
+
+- Up to 5 files per chat message
+- Maximum 8 MB per file
+- Supported images: `.jpg`, `.jpeg`, `.png`, `.webp`
+- Supported documents: `.pdf`, `.docx`, `.txt`, `.md`
+- Document text is extracted and limited before being sent as AI context
 
 ## Example Prompts
 
@@ -170,6 +186,8 @@ streamlit run app.py
 - `Save this itinerary to my Google Calendar.`
 - `Check the weather in Manila.`
 - `Compare Cebu and Boracay for a family trip.`
+- `I uploaded a map screenshot. Help me understand the route.`
+- `Use this PDF travel guide to suggest a 2-day plan.`
 
 ## Project Structure
 
@@ -195,16 +213,19 @@ travel/
 | 4 | Confirm a recommended place with `I want to go there` | Agent gives numbered travel logistics from Imus, Cavite before an itinerary |
 | 5 | Use Quick Weather Check for Manila | Weather card shows live temperature, condition, humidity, and wind |
 | 6 | Record a voice request | App transcribes the audio and shows a preview or auto-sends it |
-| 7 | Click Add to Google Calendar without a date | App asks for an exact start date |
-| 8 | Provide `2026-06-10` after the calendar prompt | App creates the calendar event if Google OAuth is configured |
-| 9 | Refresh the page | Saved preferences and chat history are restored |
-| 10 | Reset saved device data | Local persisted state is cleared and defaults are restored |
+| 7 | Attach a supported image and ask about it | App sends the image with the request and the assistant uses visible details in the answer |
+| 8 | Attach a PDF, DOCX, TXT, or MD file | App extracts readable text and includes it as context for the assistant |
+| 9 | Attach an unsupported file type or file larger than 8 MB | App shows a warning and skips the unsupported file |
+| 10 | Click Add to Google Calendar without a date | App asks for an exact start date |
+| 11 | Provide `2026-06-10` after the calendar prompt | App creates the calendar event if Google OAuth is configured |
+| 12 | Refresh the page | Saved preferences and chat history are restored |
+| 13 | Reset saved device data | Local persisted state is cleared and defaults are restored |
 
 ## Responsible AI Notes
 
 I-Travel is a planning assistant, not an official travel authority. Users should verify visa rules, safety advisories, health requirements, prices, operating hours, transport schedules, and booking availability from official or provider sources before making final travel decisions.
 
-The app stores preferences and chat history locally on the user's device. API keys, Google OAuth credentials, and generated tokens should remain private and should not be committed to version control.
+The app stores preferences and chat history locally on the user's device. For privacy and file-size control, persisted chat history keeps attachment metadata but does not persist uploaded image data or extracted document text. API keys, Google OAuth credentials, and generated tokens should remain private and should not be committed to version control.
 
 ## License
 

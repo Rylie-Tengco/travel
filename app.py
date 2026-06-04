@@ -1,13 +1,16 @@
 import streamlit as st
 import streamlit.components.v1 as components
 import requests
+import base64
 import hashlib
 import html
 import json
+import mimetypes
 import re
 import os
 import tempfile
 from datetime import date, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote_plus
 from groq import Groq
@@ -18,12 +21,14 @@ try:
     from google.oauth2.credentials import Credentials as GoogleCredentials
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build as build_google_service
+    from googleapiclient.errors import HttpError
 except Exception:
     RefreshError = None
     GoogleAuthRequest = None
     GoogleCredentials = None
     InstalledAppFlow = None
     build_google_service = None
+    HttpError = None
 
 st.set_page_config(
     page_title="I-Travel · AI Travel Planner",
@@ -308,6 +313,36 @@ section[data-testid="stSidebar"] { display: none !important; }
 }
 .user-label { color: var(--bubble-label-user); }
 .assistant-label { color: var(--bubble-label-assistant); }
+.calendar-confirmation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+.calendar-confirmation-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+.calendar-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.55rem 0.72rem;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-strong);
+    color: var(--text) !important;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none !important;
+    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+.calendar-action:hover {
+    transform: translateY(-1px);
+    background: var(--accent-2-soft);
+    border-color: var(--bubble-assistant-border);
+}
 .weather-card {
     background: var(--card-bg-strong);
     border: 1px solid var(--accent-strong);
@@ -564,6 +599,17 @@ div[data-testid="stToggle"] [data-testid="stMarkdownContainer"] {
     color: var(--chat-send-text) !important;
     fill: currentColor !important;
 }
+[data-testid="stChatInputFileUploadButton"] button,
+[data-testid="stChatInputSubmitButton"] {
+    width: 2.35rem !important;
+    height: 2.35rem !important;
+    min-height: 2.35rem !important;
+}
+[data-testid="stChatInputFileUploadButton"] button:hover,
+[data-testid="stChatInputSubmitButton"]:hover {
+    border-color: var(--accent-strong) !important;
+    background: var(--accent-soft) !important;
+}
 .stDivider {
     margin: 1rem 0 !important;
 }
@@ -572,8 +618,19 @@ div[data-testid="stToggle"] [data-testid="stMarkdownContainer"] {
 [data-testid="stChatInputContainer"] textarea {
     background: transparent !important;
     color: var(--text) !important;
-    padding: 0.72rem 3.25rem 0.72rem 1rem !important;
+    padding: 0.72rem 0.2rem !important;
     line-height: 1.35 !important;
+}
+[data-testid="stChatInput"] [data-testid="stFileUploaderFile"],
+[data-testid="stChatInput"] [data-testid="stUploadedFile"] {
+    background: var(--accent-2-soft) !important;
+    border: 1px solid var(--input-border) !important;
+    border-radius: 12px !important;
+    color: var(--text) !important;
+}
+[data-testid="stChatInput"] [data-testid="stFileUploaderFileName"],
+[data-testid="stChatInput"] [data-testid="stUploadedFileName"] {
+    color: var(--text) !important;
 }
 .stTextInput label, .stSelectbox label, .stNumberInput label, .stTextArea label,
 .stCheckbox label, .stAudioInput label, .stToggle label, .stChatInput label,
@@ -677,6 +734,19 @@ html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_s
     min-height: 0 !important;
     margin-bottom: 0 !important;
 }
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed > [data-testid="stElementContainer"]:has([data-testid="stButton"]) {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 3.15rem !important;
+    overflow: visible !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed [data-testid="stButton"] {
+    margin: -0.2rem 0 0.35rem !important;
+}
+html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed [data-testid="stButton"] button {
+    width: fit-content !important;
+    min-height: 2.55rem !important;
+}
 html body .stApp section[data-testid="stMain"] div.stVerticalBlock.st-key-chat_shell .st-key-chat_feed::-webkit-scrollbar {
     width: 10px;
 }
@@ -760,9 +830,23 @@ def load_persisted_state():
 
 
 def save_persisted_state():
+    persisted_messages = []
+    for message in st.session_state.get("messages", []):
+        persisted_message = dict(message)
+        if persisted_message.get("attachments"):
+            persisted_message["attachments"] = [
+                {
+                    key: value
+                    for key, value in attachment.items()
+                    if key not in {"data_url", "text"}
+                }
+                for attachment in persisted_message["attachments"]
+            ]
+        persisted_messages.append(persisted_message)
+
     payload = {
         "state_version": PERSISTED_STATE_VERSION,
-        "messages": st.session_state.get("messages", []),
+        "messages": persisted_messages,
         "trip_country": st.session_state.get("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]),
         "trip_style": st.session_state.get("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]),
         "trip_days": int(st.session_state.get("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"])),
@@ -902,7 +986,7 @@ COUNTRY_OPTIONS = [
 
 persisted_state = load_persisted_state()
 persisted_state_version = int(persisted_state.get("state_version", 0)) if isinstance(persisted_state.get("state_version", 0), int) else 0
-for key, default in [("messages", PERSISTED_STATE_DEFAULTS["messages"]), ("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]), ("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]), ("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]), ("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]), ("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]), ("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]), ("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]), ("departure_time_text", PERSISTED_STATE_DEFAULTS["departure_time_text"]), ("transport_preference", PERSISTED_STATE_DEFAULTS["transport_preference"]), ("travel_companions", PERSISTED_STATE_DEFAULTS["travel_companions"]), ("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]), ("api_key_set", False), ("weather_api_key_set", False), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", ""), ("calendar_save_pending", False)]:
+for key, default in [("messages", PERSISTED_STATE_DEFAULTS["messages"]), ("trip_country", PERSISTED_STATE_DEFAULTS["trip_country"]), ("trip_style", PERSISTED_STATE_DEFAULTS["trip_style"]), ("trip_days", PERSISTED_STATE_DEFAULTS["trip_days"]), ("budget_scope", PERSISTED_STATE_DEFAULTS["budget_scope"]), ("budget_currency", PERSISTED_STATE_DEFAULTS["budget_currency"]), ("budget_amount", PERSISTED_STATE_DEFAULTS["budget_amount"]), ("trip_date_text", PERSISTED_STATE_DEFAULTS["trip_date_text"]), ("departure_time_text", PERSISTED_STATE_DEFAULTS["departure_time_text"]), ("transport_preference", PERSISTED_STATE_DEFAULTS["transport_preference"]), ("travel_companions", PERSISTED_STATE_DEFAULTS["travel_companions"]), ("theme_mode", PERSISTED_STATE_DEFAULTS["theme_mode"]), ("api_key_set", False), ("weather_api_key_set", False), ("last_voice_audio_hash", ""), ("last_voice_transcript", ""), ("voice_preview_ready", False), ("voice_preview_text", ""), ("voice_preview_cleared", False), ("ignore_hash_once", ""), ("calendar_save_pending", False), ("chat_attachment_uploader_nonce", 0)]:
     if key not in st.session_state:
         st.session_state[key] = persisted_state.get(key, default)
 
@@ -1282,14 +1366,17 @@ def assistant_message(reply):
     return {"role": "assistant", "content": str(reply)}
 
 
-def calendar_saved_message(link=""):
-    message = {"content": "Done - I added the trip to Google Calendar."}
+def calendar_saved_message(link="", event_id="", calendar_id="primary"):
+    message = {"content": "Trip added to Google Calendar."}
     if link:
         message["calendar_link"] = link
+    if event_id:
+        message["calendar_event_id"] = event_id
+        message["calendar_id"] = calendar_id
     return message
 
 
-def get_google_calendar_service():
+def get_google_calendar_service(allow_interactive=True):
     if not all([GoogleAuthRequest, GoogleCredentials, InstalledAppFlow, build_google_service]):
         raise RuntimeError("Google Calendar libraries are not installed. Run `pip install -r requirements.txt` and restart the app.")
 
@@ -1324,6 +1411,8 @@ def get_google_calendar_service():
                 else:
                     raise
         else:
+            if not allow_interactive:
+                raise RuntimeError("Google Calendar is not connected yet.")
             creds = run_oauth_flow()
 
     return build_google_service("calendar", "v3", credentials=creds)
@@ -1355,9 +1444,59 @@ def build_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_day
 
 def create_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text):
     service = get_google_calendar_service()
+    calendar_id = "primary"
     event = build_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text)
-    created = service.events().insert(calendarId="primary", body=event).execute()
-    return created.get("htmlLink", "")
+    created = service.events().insert(calendarId=calendar_id, body=event).execute()
+    return {
+        "calendar_id": calendar_id,
+        "event_id": created.get("id", ""),
+        "link": created.get("htmlLink", ""),
+    }
+
+
+def is_calendar_event_missing(service, calendar_id, event_id):
+    try:
+        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+    except Exception as exc:
+        if HttpError and isinstance(exc, HttpError):
+            status = getattr(getattr(exc, "resp", None), "status", None)
+            return status in (404, 410)
+        raise
+
+    return event.get("status") == "cancelled"
+
+
+def remove_deleted_calendar_confirmations():
+    messages = st.session_state.get("messages", [])
+    tracked_messages = [
+        msg for msg in messages
+        if msg.get("role") == "assistant" and msg.get("calendar_event_id")
+    ]
+    if not tracked_messages:
+        return
+
+    try:
+        service = get_google_calendar_service(allow_interactive=False)
+    except Exception:
+        return
+
+    changed = False
+    active_messages = []
+    for msg in messages:
+        event_id = msg.get("calendar_event_id")
+        if msg.get("role") == "assistant" and event_id:
+            calendar_id = msg.get("calendar_id", "primary")
+            try:
+                if is_calendar_event_missing(service, calendar_id, event_id):
+                    changed = True
+                    continue
+            except Exception:
+                pass
+        active_messages.append(msg)
+
+    if changed:
+        st.session_state.messages = active_messages
+        save_persisted_state()
 
 
 def save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, trip_date_text, remember_missing_date=False):
@@ -1366,7 +1505,7 @@ def save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budge
         return "I could not find a recent itinerary to add yet. Ask me to create a trip plan first, then I can mark it in Google Calendar."
 
     try:
-        link = create_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text)
+        created = create_trip_calendar_event(itinerary_text, trip_country, trip_style, trip_days, budget, trip_date_text)
     except MissingTripStartDate:
         if remember_missing_date:
             st.session_state.calendar_save_pending = True
@@ -1374,7 +1513,7 @@ def save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budge
     except Exception as exc:
         return f"I could not add it to Google Calendar yet: {exc}"
 
-    return calendar_saved_message(link)
+    return calendar_saved_message(created.get("link", ""), created.get("event_id", ""), created.get("calendar_id", "primary"))
 
 
 def is_recommendation_response(user_text, assistant_text):
@@ -1583,8 +1722,160 @@ def build_response_images_cached(user_message, assistant_message, limit=3):
     return tuple((item["url"], item["caption"]) for item in build_response_images(user_message, assistant_message, limit))
 
 
-def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text, current_date_text, confirmed_destination="", departure_time_text="", transport_preference="", travel_companions=""):
+MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024
+MAX_ATTACHMENT_TEXT_CHARS = 7000
+MAX_CHAT_ATTACHMENTS = 5
+IMAGE_ATTACHMENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+DOCUMENT_ATTACHMENT_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/plain",
+    "text/markdown",
+}
+
+
+def upload_bytes(uploaded_file):
+    if uploaded_file is None:
+        return b""
+    if hasattr(uploaded_file, "getvalue"):
+        return uploaded_file.getvalue()
+    if hasattr(uploaded_file, "read"):
+        return uploaded_file.read()
+    try:
+        return bytes(uploaded_file)
+    except Exception:
+        return b""
+
+
+def detect_upload_mime(uploaded_file):
+    uploaded_type = getattr(uploaded_file, "type", "") or ""
+    if uploaded_type:
+        return uploaded_type
+    guessed_type, _ = mimetypes.guess_type(getattr(uploaded_file, "name", "") or "")
+    return guessed_type or "application/octet-stream"
+
+
+def extract_document_text(file_name, mime_type, file_bytes):
+    try:
+        if mime_type == "application/pdf" or file_name.lower().endswith(".pdf"):
+            from pypdf import PdfReader
+
+            reader = PdfReader(BytesIO(file_bytes))
+            page_text = []
+            for page_number, page in enumerate(reader.pages[:12], start=1):
+                text = page.extract_text() or ""
+                if text.strip():
+                    page_text.append(f"Page {page_number}:\n{text.strip()}")
+            return "\n\n".join(page_text).strip()
+
+        if (
+            mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            or file_name.lower().endswith(".docx")
+        ):
+            from docx import Document
+
+            document = Document(BytesIO(file_bytes))
+            paragraphs = [paragraph.text.strip() for paragraph in document.paragraphs if paragraph.text.strip()]
+            return "\n".join(paragraphs).strip()
+
+        if mime_type.startswith("text/") or file_name.lower().endswith((".txt", ".md")):
+            return file_bytes.decode("utf-8", errors="replace").strip()
+    except Exception as exc:
+        return f"[Could not extract text from this document: {exc}]"
+
+    return ""
+
+
+def prepare_chat_attachments(uploaded_files):
+    prepared = []
+    warnings = []
+    for uploaded_file in (uploaded_files or [])[:MAX_CHAT_ATTACHMENTS]:
+        file_bytes = upload_bytes(uploaded_file)
+        file_name = getattr(uploaded_file, "name", "attachment") or "attachment"
+        mime_type = detect_upload_mime(uploaded_file)
+        if not file_bytes:
+            warnings.append(f"{file_name} was empty.")
+            continue
+        if len(file_bytes) > MAX_ATTACHMENT_BYTES:
+            warnings.append(f"{file_name} is larger than 8 MB, so I skipped it.")
+            continue
+
+        attachment = {
+            "name": file_name,
+            "mime_type": mime_type,
+            "size": len(file_bytes),
+        }
+        if mime_type in IMAGE_ATTACHMENT_TYPES:
+            encoded = base64.b64encode(file_bytes).decode("ascii")
+            attachment["kind"] = "image"
+            attachment["data_url"] = f"data:{mime_type};base64,{encoded}"
+        elif mime_type in DOCUMENT_ATTACHMENT_TYPES or file_name.lower().endswith((".pdf", ".docx", ".txt", ".md")):
+            extracted_text = extract_document_text(file_name, mime_type, file_bytes)
+            attachment["kind"] = "document"
+            attachment["text"] = extracted_text[:MAX_ATTACHMENT_TEXT_CHARS]
+            if len(extracted_text) > MAX_ATTACHMENT_TEXT_CHARS:
+                attachment["truncated"] = True
+            if not extracted_text:
+                warnings.append(f"I could not find readable text in {file_name}.")
+        else:
+            warnings.append(f"{file_name} is not a supported image or document type.")
+            continue
+
+        prepared.append(attachment)
+
+    if uploaded_files and len(uploaded_files) > MAX_CHAT_ATTACHMENTS:
+        warnings.append(f"Only the first {MAX_CHAT_ATTACHMENTS} attachments were included.")
+
+    return prepared, warnings
+
+
+def build_attachment_context(attachments):
+    if not attachments:
+        return ""
+
+    sections = []
+    for idx, attachment in enumerate(attachments, start=1):
+        name = attachment.get("name", f"Attachment {idx}")
+        if attachment.get("kind") == "image":
+            sections.append(
+                f"Attachment {idx}: {name} is an image. Inspect it directly and use visible destination, route, booking, map, schedule, or document details when planning."
+            )
+        elif attachment.get("kind") == "document":
+            extracted_text = attachment.get("text", "").strip()
+            suffix = "\n[Text was truncated for length.]" if attachment.get("truncated") else ""
+            sections.append(f"Attachment {idx}: {name}\nExtracted document text:\n{extracted_text}{suffix}")
+
+    return "\n\n".join(sections)
+
+
+def build_user_content_for_groq(user_message, attachments):
+    attachment_context = build_attachment_context(attachments)
+    text = user_message.strip()
+    if attachment_context:
+        text = f"{text}\n\nAttached travel context:\n{attachment_context}" if text else f"Please help me with these travel attachments.\n\nAttached travel context:\n{attachment_context}"
+
+    image_attachments = [attachment for attachment in attachments or [] if attachment.get("kind") == "image"]
+    if not image_attachments:
+        return text
+
+    content = [{"type": "text", "text": text}]
+    for attachment in image_attachments:
+        content.append({"type": "image_url", "image_url": {"url": attachment["data_url"]}})
+    return content
+
+
+def visible_user_message(user_message, attachments):
+    text = user_message.strip()
+    if text:
+        return text
+    if attachments:
+        return "Please help me understand these travel attachments."
+    return ""
+
+
+def chat_with_agent(user_message, trip_country, trip_style, trip_days, budget, trip_date_text, current_date_text, confirmed_destination="", departure_time_text="", transport_preference="", travel_companions="", attachments=None):
     client = Groq(api_key=st.session_state.groq_key)
+    attachments = attachments or []
     schedule_context = trip_date_text if trip_date_text else "Not provided yet"
     departure_context = departure_time_text if departure_time_text else "Not provided yet"
     transport_context = transport_preference if transport_preference and transport_preference != "No preference yet" else "Not provided yet"
@@ -1610,9 +1901,10 @@ Confirmed destination flow:
     messages = [{"role": "system", "content": system}]
     for m in st.session_state.messages:
         messages.append({"role": m["role"], "content": m["content"]})
-    messages.append({"role": "user", "content": user_message})
+    messages.append({"role": "user", "content": build_user_content_for_groq(user_message, attachments)})
+    model = "meta-llama/llama-4-scout-17b-16e-instruct" if any(attachment.get("kind") == "image" for attachment in attachments) else "llama-3.3-70b-versatile"
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=model,
         messages=messages,
         max_tokens=1200,
         temperature=0.7,
@@ -1672,6 +1964,12 @@ def transcribe_voice_intent(audio_input):
                 os.remove(temp_path)
         except Exception:
             pass
+
+
+if not st.session_state.get("calendar_deletion_sync_checked"):
+    remove_deleted_calendar_confirmations()
+    st.session_state.calendar_deletion_sync_checked = True
+
 
 left, right = st.columns([1, 2.5], gap="large")
 
@@ -2031,9 +2329,28 @@ with right:
                 if msg["role"] == "user":
                     safe_content = html.escape(msg["content"]).replace("\n", "<br>")
                     st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div>{safe_content}</div>""", unsafe_allow_html=True)
+                    if msg.get("attachments"):
+                        image_attachments = [attachment for attachment in msg["attachments"] if attachment.get("kind") == "image" and attachment.get("data_url")]
+                        document_attachments = [attachment for attachment in msg["attachments"] if attachment.get("kind") == "document"]
+                        if image_attachments:
+                            image_cols = st.columns(min(len(image_attachments), 3))
+                            for idx, attachment in enumerate(image_attachments):
+                                with image_cols[idx % len(image_cols)]:
+                                    st.image(attachment["data_url"], caption=attachment.get("name"), use_container_width=True)
+                        for attachment in document_attachments:
+                            st.caption(f"📎 {attachment.get('name', 'Document attached')}")
                 else:
                     content = html.escape(msg["content"]).replace("\n", "<br>")
-                    st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 I-Travel</div>{content}</div>""", unsafe_allow_html=True)
+                    calendar_link = msg.get("calendar_link")
+                    if calendar_link:
+                        safe_link = html.escape(calendar_link, quote=True)
+                        st.markdown(f"""<div class="message-card chat-assistant calendar-confirmation">
+                            <div class="chat-label assistant-label">🌍 I-Travel</div>
+                            <div class="calendar-confirmation-text">{content}</div>
+                            <a class="calendar-action" href="{safe_link}" target="_blank" rel="noopener noreferrer">Open in Google Calendar</a>
+                        </div>""", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""<div class="message-card chat-assistant"><div class="chat-label assistant-label">🌍 I-Travel</div>{content}</div>""", unsafe_allow_html=True)
                     if msg.get("images"):
                         image_cols = st.columns(min(len(msg["images"]), 3))
                         for idx, image_data in enumerate(msg["images"]):
@@ -2042,14 +2359,12 @@ with right:
                                     st.image(image_data, use_container_width=True)
                                 else:
                                     st.image(image_data["url"], caption=image_data.get("caption"), use_container_width=True)
-                    if msg.get("calendar_link"):
-                        st.link_button("Open in Google Calendar", msg["calendar_link"])
                     if is_itinerary_text(msg.get("content", "")):
                         if st.button("Add to Google Calendar", key=f"calendar_add_{msg_idx}"):
                             with st.spinner("Adding this trip to Google Calendar..."):
                                 try:
-                                    link = create_trip_calendar_event(msg.get("content", ""), trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
-                                    calendar_reply = calendar_saved_message(link)
+                                    created = create_trip_calendar_event(msg.get("content", ""), trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text)
+                                    calendar_reply = calendar_saved_message(created.get("link", ""), created.get("event_id", ""), created.get("calendar_id", "primary"))
                                 except MissingTripStartDate:
                                     st.session_state.calendar_save_pending = True
                                     calendar_reply = missing_calendar_date_message()
@@ -2059,45 +2374,74 @@ with right:
                             save_and_rerun()
             st.markdown('<div id="chat-bottom-anchor"></div>', unsafe_allow_html=True)
 
-        # ── KEY FIX: use st.chat_input — only fires when user presses Enter/Send ──
         chat_placeholder = "Ask me anything... e.g. Plan a 5-day trip to Tokyo" if not st.session_state.messages else ""
-        user_input = st.chat_input(chat_placeholder)
+        chat_submission = st.chat_input(
+            chat_placeholder,
+            accept_file="multiple",
+            file_type=["jpg", "jpeg", "png", "webp", "pdf", "docx", "txt", "md"],
+            key=f"chat_input_{st.session_state.chat_attachment_uploader_nonce}",
+        )
 
-        if user_input:
-            confirmed_destination = get_confirmed_destination(user_input)
-            if trip_country == COUNTRY_PLACEHOLDER:
-                st.warning("Choose a country first so I can keep the trip focused there.")
-            elif st.session_state.get("calendar_save_pending"):
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                pending_calendar_reply = answer_pending_calendar_date(user_input, trip_country, trip_style, trip_days, budget)
-                st.session_state.messages.append(assistant_message(pending_calendar_reply))
-                save_and_rerun()
-            elif wants_calendar_save(user_input):
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                calendar_reply = save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, remember_missing_date=True)
-                st.session_state.messages.append(assistant_message(calendar_reply))
-                save_and_rerun()
-            elif not st.session_state.api_key_set:
-                st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
-            elif wants_trip_schedule(user_input) and not confirmed_destination and not st.session_state.trip_date_text.strip():
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
-                })
-                save_and_rerun()
+        if chat_submission:
+            if isinstance(chat_submission, str):
+                submitted_text = chat_submission
+                uploaded_chat_files = []
             else:
-                st.session_state.messages.append({"role": "user", "content": user_input})
-                with st.spinner("I-Travel is thinking... 🌍"):
-                    try:
-                        reply = chat_with_agent(user_input, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text, confirmed_destination, st.session_state.departure_time_text, st.session_state.transport_preference, st.session_state.travel_companions)
-                        assistant_message = {"role": "assistant", "content": reply}
-                        images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(user_input, reply)]
-                        if images:
-                            assistant_message["images"] = images
-                        st.session_state.messages.append(assistant_message)
-                        save_and_rerun()
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
+                submitted_text = getattr(chat_submission, "text", "") or chat_submission.get("text", "")
+                uploaded_chat_files = getattr(chat_submission, "files", []) or chat_submission.get("files", [])
+
+            attachment_payload, attachment_warnings = prepare_chat_attachments(uploaded_chat_files)
+            for warning in attachment_warnings:
+                st.warning(warning)
+            visible_content = visible_user_message(submitted_text, attachment_payload)
+            if not visible_content:
+                st.warning("Attach a supported image or document, or type a message first.")
+            else:
+                confirmed_destination = get_confirmed_destination(submitted_text)
+                user_message_payload = {"role": "user", "content": visible_content}
+                if attachment_payload:
+                    user_message_payload["attachments"] = attachment_payload
+
+                def clear_chat_attachments_after_send():
+                    st.session_state.chat_attachment_uploader_nonce += 1
+
+                if trip_country == COUNTRY_PLACEHOLDER:
+                    st.warning("Choose a country first so I can keep the trip focused there.")
+                elif st.session_state.get("calendar_save_pending"):
+                    st.session_state.messages.append(user_message_payload)
+                    pending_calendar_reply = answer_pending_calendar_date(submitted_text, trip_country, trip_style, trip_days, budget)
+                    st.session_state.messages.append(assistant_message(pending_calendar_reply))
+                    clear_chat_attachments_after_send()
+                    save_and_rerun()
+                elif submitted_text and wants_calendar_save(submitted_text):
+                    st.session_state.messages.append(user_message_payload)
+                    calendar_reply = save_latest_itinerary_to_calendar(trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, remember_missing_date=True)
+                    st.session_state.messages.append(assistant_message(calendar_reply))
+                    clear_chat_attachments_after_send()
+                    save_and_rerun()
+                elif not st.session_state.api_key_set:
+                    st.error("⚠️ Set the Groq API key in Streamlit secrets or the GROQ_API_KEY environment variable first.")
+                elif submitted_text and wants_trip_schedule(submitted_text) and not confirmed_destination and not st.session_state.trip_date_text.strip():
+                    st.session_state.messages.append(user_message_payload)
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": "When would you like to take the trip? Once I have the timing, I can build and schedule the itinerary for you."
+                    })
+                    clear_chat_attachments_after_send()
+                    save_and_rerun()
+                else:
+                    st.session_state.messages.append(user_message_payload)
+                    with st.spinner("I-Travel is thinking... 🌍"):
+                        try:
+                            reply = chat_with_agent(submitted_text, trip_country, trip_style, trip_days, budget, st.session_state.trip_date_text, current_date_text, confirmed_destination, st.session_state.departure_time_text, st.session_state.transport_preference, st.session_state.travel_companions, attachments=attachment_payload)
+                            assistant_message = {"role": "assistant", "content": reply}
+                            images = [{"url": url, "caption": caption} for url, caption in build_response_images_cached(submitted_text, reply)]
+                            if images:
+                                assistant_message["images"] = images
+                            st.session_state.messages.append(assistant_message)
+                            clear_chat_attachments_after_send()
+                            save_and_rerun()
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
 
 save_persisted_state()
