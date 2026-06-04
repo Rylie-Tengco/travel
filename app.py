@@ -2328,17 +2328,31 @@ with right:
             for msg_idx, msg in enumerate(st.session_state.messages):
                 if msg["role"] == "user":
                     safe_content = html.escape(msg["content"]).replace("\n", "<br>")
-                    st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div>{safe_content}</div>""", unsafe_allow_html=True)
+                    attachments_html = ""
                     if msg.get("attachments"):
-                        image_attachments = [attachment for attachment in msg["attachments"] if attachment.get("kind") == "image" and attachment.get("data_url")]
-                        document_attachments = [attachment for attachment in msg["attachments"] if attachment.get("kind") == "document"]
-                        if image_attachments:
-                            image_cols = st.columns(min(len(image_attachments), 3))
-                            for idx, attachment in enumerate(image_attachments):
-                                with image_cols[idx % len(image_cols)]:
-                                    st.image(attachment["data_url"], caption=attachment.get("name"), use_container_width=True)
-                        for attachment in document_attachments:
-                            st.caption(f"📎 {attachment.get('name', 'Document attached')}")
+                        img_htmls = []
+                        doc_htmls = []
+                        for attachment in msg["attachments"]:
+                            name = html.escape(attachment.get("name", "attachment"))
+                            if attachment.get("kind") == "image" and attachment.get("data_url"):
+                                img_htmls.append(
+                                    f'<img src="{attachment["data_url"]}" style="max-width: 100%; max-height: 200px; object-fit: cover; border-radius: 12px; border: 1px solid var(--line); margin-top: 8px; box-shadow: var(--shadow);" alt="{name}" title="{name}" />'
+                                )
+                            elif attachment.get("kind") == "document":
+                                doc_htmls.append(
+                                    f'<span style="display: inline-flex; align-items: center; gap: 6px; background: var(--line); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 10px; font-size: 0.78rem; font-weight: 500; color: var(--text); margin-top: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">📎 {name}</span>'
+                                )
+                            elif attachment.get("kind") == "image" and not attachment.get("data_url"):
+                                doc_htmls.append(
+                                    f'<span style="display: inline-flex; align-items: center; gap: 6px; background: var(--line); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 10px; font-size: 0.78rem; font-weight: 500; color: var(--text); margin-top: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">🖼️ {name}</span>'
+                                )
+                        
+                        if img_htmls:
+                            attachments_html += f'<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;">{"".join(img_htmls)}</div>'
+                        if doc_htmls:
+                            attachments_html += f'<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px;">{"".join(doc_htmls)}</div>'
+
+                    st.markdown(f"""<div class="message-card chat-user"><div class="chat-label user-label">👤 You</div><div>{safe_content}</div>{attachments_html}</div>""", unsafe_allow_html=True)
                 else:
                     content = html.escape(msg["content"]).replace("\n", "<br>")
                     calendar_link = msg.get("calendar_link")
